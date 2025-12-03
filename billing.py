@@ -148,7 +148,8 @@ class BillWindow(QWidget):
         btn_generate = QPushButton("Generate Bill")
         btn_generate.clicked.connect(self.generate_bill)
         btn_print = QPushButton("Print")
-        btn_print.clicked.connect(self.print_bill)
+        btn_print.clicked.connect(self.save_bill_to_file)
+        # btn_print.clicked.connect(self.print_bill)
         btn_clear_all = QPushButton("Clear All")
         btn_clear_all.clicked.connect(self.clear_all)
         btn_layout.addWidget(btn_generate)
@@ -157,6 +158,29 @@ class BillWindow(QWidget):
         right_panel.addLayout(btn_layout)
 
     # ================= Functions =================
+    def save_bill_to_file(self):
+        if not self.cart_list:
+            QMessageBox.information(self, "Info", "Generate bill first")
+            return
+
+        # Thư mục lưu hóa đơn
+        folder = "bill"
+        if not os.path.exists(folder):
+            os.makedirs(folder)  # tạo folder nếu chưa có
+
+        # Tên file có thể dùng timestamp để không bị trùng
+        import datetime
+        timestamp = int(time.strftime("%H%M%S"))+int(time.strftime("%d%m%Y"))
+        file_path = os.path.join(folder, f"{timestamp}.txt")
+
+        # Ghi file với encoding UTF-8 để hỗ trợ tiếng Việt
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(self.txt_bill_area.toPlainText())
+            QMessageBox.information(self, "Thành công", f"Lưu hóa đơn thành công:\n{file_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi", f"Không thể lưu file:\n{str(e)}")
+
     def update_date_time(self):
         now = time.strftime("%d-%m-%Y %H:%M:%S")
         self.lbl_clock.setText(f"Welcome to IMS\t\t {now}")
@@ -236,36 +260,60 @@ class BillWindow(QWidget):
 
     def generate_bill(self):
         if not self.cart_list:
-            QMessageBox.warning(self,"Error","Cart is empty")
+            QMessageBox.warning(self, "Error", "Cart is empty")
             return
+
         self.txt_bill_area.clear()
         total = 0
-        self.txt_bill_area.append("XYZ-Inventory\nPhone: 9899459288\n"+"="*40)
+        self.txt_bill_area.append("XYZ-Inventory\nPhone: 9899459288\n" + "=" * 40)
+
         for row in self.cart_list:
-            name = row[1]; qty=int(row[3]); price=float(row[2])
-            self.txt_bill_area.append(f"{name}\t{qty}\tRs.{price*qty}")
-            total += price*qty
-            # Update DB qty
-            db_qty = self.execute_db("SELECT qty FROM product WHERE pid=%s",(row[0],),fetch=True)[0][0]
+            pid = row[0]
+            name = row[1]
+            qty = int(row[3])  # đảm bảo int
+            price = float(row[2])  # đảm bảo float
+
+            self.txt_bill_area.append(f"{name}\t{qty}\tRs.{price * qty:.2f}")
+            total += price * qty
+
+            # Lấy số lượng hiện tại từ DB và convert sang int
+            db_qty = self.execute_db(
+                "SELECT qty FROM product WHERE pid=%s",
+                (pid,), fetch=True
+            )[0][0]
+            db_qty = int(db_qty)
+
             new_qty = db_qty - qty
-            status = "Inactive" if new_qty==0 else "Active"
-            self.execute_db("UPDATE product SET qty=%s,status=%s WHERE pid=%s",(new_qty,status,row[0]))
-        discount = total*0.05
+            status = "Inactive" if new_qty == 0 else "Active"
+
+            # Cập nhật DB
+            self.execute_db(
+                "UPDATE product SET qty=%s, status=%s WHERE pid=%s",
+                (new_qty, status, pid)
+            )
+
+        discount = total * 0.05
         net = total - discount
-        self.txt_bill_area.append("="*40)
-        self.txt_bill_area.append(f"Total: Rs.{total}")
-        self.txt_bill_area.append(f"Discount 5%: Rs.{discount}")
-        self.txt_bill_area.append(f"Net Pay: Rs.{net}")
+
+        self.txt_bill_area.append("=" * 40)
+        self.txt_bill_area.append(f"Total: Rs.{total:.2f}")
+        self.txt_bill_area.append(f"Discount 5%: Rs.{discount:.2f}")
+        self.txt_bill_area.append(f"Net Pay: Rs.{net:.2f}")
+
         self.show_products()
 
     def print_bill(self):
-        if self.cart_list:
-            file_path = tempfile.mktemp(".txt")
-            with open(file_path,'w') as f:
-                f.write(self.txt_bill_area.toPlainText())
-            os.startfile(file_path,'print')
-        else:
-            QMessageBox.information(self,"Info","Generate bill first")
+        if not self.cart_list:
+            QMessageBox.information(self, "Info", "Generate bill first")
+            return
+
+        # Lưu file với encoding UTF-8 để tránh lỗi Unicode
+        file_path = tempfile.mktemp(".txt")
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(self.txt_bill_area.toPlainText())
+
+        # Gọi in
+        os.startfile(file_path, 'print')
 
     def clear_all(self):
         self.cart_list.clear()
