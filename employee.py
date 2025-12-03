@@ -3,9 +3,7 @@ import re
 from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QLineEdit, QTextEdit, QPushButton,
                                QComboBox, QTableWidget, QTableWidgetItem, QHeaderView, QHBoxLayout,
                                QVBoxLayout, QGridLayout, QMessageBox)
-from PySide6.QtGui import QFont
 from create_db import get_connection
-from PySide6.QtCore import QTimer
 from Toast import *
 class EmployeeApp(QWidget):
     def __init__(self):

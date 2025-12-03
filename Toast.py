@@ -97,3 +97,9 @@ class Toast(QLabel):
         if self in Toast._instances:
             Toast._instances.remove(self)
         event.accept()
+
+    def toast(self, msg):
+        Toast(msg, self).show()
+
+    def toast_error(self, msg):
+        Toast(msg, self, error=True).show()
