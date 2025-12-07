@@ -367,6 +367,7 @@ class BillWindow(QWidget):
             QMessageBox.warning(self, "Lỗi", "Giỏ hàng trống!")
             return
 
+        # --- Thông tin hóa đơn ---
         bill_lines = [
             "          XYZ INVENTORY SYSTEM",
             "   Địa chỉ: 123 Đường ABC, TP.HCM",
@@ -383,9 +384,9 @@ class BillWindow(QWidget):
         total = 0
         updated_count = 0
 
+        # --- Xử lý từng sản phẩm trong giỏ ---
         for item in self.cart_list:
-            pid = int(item[0])  # giữ pid là int
-            print(pid)
+            pid = int(item[0])  # PID là số nguyên
             name = str(item[1])
             price = float(item[2])
             qty = int(item[3])
@@ -394,9 +395,32 @@ class BillWindow(QWidget):
 
             # Cắt tên dài để không lệch cột
             display_name = (name[:25] + "...") if len(name) > 28 else name.ljust(28)
-
             bill_lines.append(f"{display_name} {qty:>5} {price:>12,.0f} {line_total:>12,.0f}")
-        # Thanh toán
+
+            # --- Cập nhật tồn kho ---
+            try:
+                result = self.execute_db(
+                    "SELECT qty FROM product WHERE pid = %s",
+                    (pid,),  # tuple chứa int
+                    fetch=True
+                )
+                print(result)
+                if result:
+                    current_qty = int(result[0][0])
+                    new_qty = max(0, current_qty - qty)
+                    status = "Inactive" if new_qty == 0 else "Active"
+
+                    self.execute_db(
+                        "UPDATE product SET qty = %s, status = %s WHERE pid = %s",
+                        (new_qty, status, pid)
+                    )
+                    updated_count += 1
+                else:
+                    bill_lines.append(f"  [KHÔNG TÌM THẤY SP PID={pid}]")
+            except Exception as e:
+                bill_lines.append(f"  [LỖI DB: {e}]")
+
+        # --- Tính thanh toán ---
         discount = total * 0.05
         net_pay = total - discount
 
@@ -411,8 +435,8 @@ class BillWindow(QWidget):
             ""
         ])
 
+        # --- Hiển thị hóa đơn ---
         self.txt_bill_area.setPlainText("\n".join(bill_lines))
-
         QMessageBox.information(
             self, "Thành công!",
             f"Hóa đơn đã tạo!\n"
@@ -420,6 +444,7 @@ class BillWindow(QWidget):
             f"• Cập nhật kho: {updated_count}/{len(self.cart_list)} sản phẩm"
         )
 
+        # --- Tải lại sản phẩm ---
         self.load_products()
 
     def print_bill(self):
