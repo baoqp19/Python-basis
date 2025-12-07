@@ -2,7 +2,7 @@ import sys
 from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QTextEdit, QPushButton,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QHeaderView, QGraphicsDropShadowEffect
+    QHeaderView, QGraphicsDropShadowEffect, QMessageBox
 )
 from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRect, QTimer
 from PySide6.QtGui import QFont, QColor
@@ -202,7 +202,7 @@ class SupplierWindow(QWidget):
         buttons = [
             ("Lưu", "#0d6efd", self.add),
             ("Sửa", "#198754", self.update),
-            ("Xóa", "#dc3545", self.delete),
+            ("Xóa", "#dc3545", self.delete_supplier),
             ("Làm mới", "#6c757d", self.clear),
         ]
         for text, color, func in buttons:
@@ -412,22 +412,35 @@ class SupplierWindow(QWidget):
         except Exception as e:
             self.toast_error(f"Lỗi: {e}")
 
-    def delete(self):
+    def delete_supplier(self):
         invoice = self.var_sup_invoice.text().strip()
+
+        # Kiểm tra xem có chọn nhà cung cấp chưa
         if not invoice:
-            self.toast_error("Chọn nhà cung cấp cần xóa!")
+            QMessageBox.critical(self, "Lỗi", "Vui lòng chọn nhà cung cấp cần xóa!")
             return
 
-        dialog = ConfirmDialog(self)
-        if dialog.exec():
+        # Hiển thị hộp thoại xác nhận
+        reply = QMessageBox.question(
+            self,
+            "Xác nhận",
+            "Bạn có chắc muốn xóa nhà cung cấp này?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        # Nếu người dùng xác nhận xóa
+        if reply == QMessageBox.Yes:
             try:
                 self.cursor.execute("DELETE FROM supplier WHERE invoice=%s", (invoice,))
                 self.conn.commit()
-                self.toast("Xóa thành công!")
-                self.clear()
-                self.load_data()
+
+                QMessageBox.information(self, "Thành công", "✔ Xóa nhà cung cấp thành công!")
+                self.clear()  # Reset form
+                self.load_data()  # Load lại dữ liệu
+
             except Exception as e:
-                self.toast_error(f"Lỗi xóa: {e}")
+                QMessageBox.critical(self, "Lỗi", f"Xảy ra lỗi khi xóa: {str(e)}")
 
     def clear(self):
         self.var_sup_invoice.clear()

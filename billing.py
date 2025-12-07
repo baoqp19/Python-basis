@@ -246,7 +246,7 @@ class BillWindow(QWidget):
         body_layout.addWidget(right, 3)
 
         # ===================== FOOTER =====================
-        footer = QLabel("© 2025 Inventory Management System | Phát triển bởi Nishant Gupta | Liên hệ: 9899459288")
+        footer = QLabel("© 2025 Inventory Management System | Phát triển bởi Phạm Quốc Bảo | Liên hệ: 0818174508")
         footer.setStyleSheet("background:#2c3e50; color:#bdc3c7; padding:12px; font-size:12px;")
         footer.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(footer)
@@ -313,12 +313,17 @@ class BillWindow(QWidget):
 
     def search_product(self):
         keyword = self.txt_search.text().strip()
+
+        # Nếu ô tìm kiếm trống, load toàn bộ sản phẩm
         if not keyword:
             self.load_products()
             return
-        rows = self.execute_db(
-            "SELECT pid,name,price,qty,status FROM product WHERE name LIKE ? AND status='Active'",
-            (f"%{keyword}%",), fetch=True)
+
+        # Truy vấn sản phẩm theo tên và trạng thái "Active"
+        query = "SELECT pid, name, price, qty, status FROM product WHERE name LIKE %s AND status='Active'"
+        rows = self.execute_db(query, (f"%{keyword}%",), fetch=True)
+
+        # Cập nhật dữ liệu lên QTableWidget
         self.product_table.setRowCount(len(rows))
         for r, row in enumerate(rows):
             for c, val in enumerate(row):
