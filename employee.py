@@ -365,61 +365,39 @@ class EmployeeApp(QWidget):
             self.toast_error(str(e))
 
     def delete_employee(self):
-        try:
-            emp_id = self.inputs["Emp ID"].text().strip()
+        # Lấy ID nhân viên được chọn
+        emp_id = self.inputs["Emp ID"].text().strip()
 
-            if not emp_id:
-                self.toast_error("⚠️ Select an employee to delete!")
-                return
+        # Kiểm tra xem người dùng đã chọn nhân viên chưa
+        if not emp_id:
+            QMessageBox.critical(self, "Lỗi", "⚠️ Vui lòng chọn nhân viên cần xóa!")
+            return
 
-            # ----- Custom Dark Confirm Box -----
-            msg = QMessageBox(self)
-            msg.setWindowTitle("Confirm")
-            msg.setText("<span style='color:black; font-size:14px;'>Do you really want to delete?</span>")
-            msg.setIcon(QMessageBox.Question)
-            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        # Hiển thị hộp thoại xác nhận
+        reply = QMessageBox.question(
+            self,
+            "Xác nhận",
+            "Bạn có chắc muốn xóa nhân viên này?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
 
-            msg.setStyleSheet("""
-                QMessageBox {
-                    background-color: #1e1e1e;
-                    border: 2px solid #3a3a3a;
-                    border-radius: 10px;
-                }
-                QLabel {
-                    color: white;
-                    font-size: 14px;
-                }
-                QPushButton {
-                    background-color: #3a3a3a;
-                    color: white;
-                    padding: 6px 14px;
-                    border-radius: 6px;
-                    font-weight: bold;
-                    min-width: 80px;
-                }
-                QPushButton:hover {
-                    background-color: #505050;
-                }
-                QPushButton:pressed {
-                    background-color: #606060;
-                }
-            """)
+        # Nếu người dùng xác nhận xóa
+        if reply == QMessageBox.Yes:
+            con = get_connection()
+            cur = con.cursor()
+            cur.execute("DELETE FROM employee WHERE eid=%s", (emp_id,))
+            con.commit()
+            try:
+                # Thông báo thành công
+                QMessageBox.information(self, "Thành công", "✔ Xóa nhân viên thành công!")
 
-            reply = msg.exec()
-
-            # ----- User confirmed delete -----
-            if reply == QMessageBox.Yes:
-                con = get_connection()
-                cur = con.cursor()
-                cur.execute("DELETE FROM employee WHERE eid=%s", (emp_id,))
-                con.commit()
-
-                self.toast("✔ Employee deleted successfully!")
+                # Reset form và load lại danh sách
                 self.clear_form()
                 self.show_employees()
 
-        except Exception as e:
-            self.toast_error(f"❌ Error: {str(e)}")
+            except Exception as e:
+                QMessageBox.critical(self, "Lỗi", f"Xảy ra lỗi: {str(e)}")
 
     def clear_form(self):
         for key, widget in self.inputs.items():
