@@ -1,7 +1,7 @@
 # "D:\ALL_PROJECT\Python\Inventory-Management-System
 Hệ thống quản lý nventory là một dự án dựa trên python sử dụng các mô-đun PySide cho Giao diện người dùng đồ họa (GUI)
 
-## Author: Phạm Quốc Bảo 
+## Tác giả: Phạm Quốc Bảo 
 
 ### Overview
 Dự án này bao gồm 8 file Python minh họa cách tương tác với Giao diện Người dùng Đồ họa (GUI) bằng `PySide`, quản lý hình ảnh bằng `Matplotlib `, xử lý ngày/giờ bằng `datetime`, cơ sở dữ liệu bằng `MySQL` và truy xuất tệp từ hệ thống bằng mô-đun `os`. Trong dự án này, có tổng cộng 8 file Python được kết nối với nhau. 8 tập lệnh Python đó như sau:-
@@ -81,7 +81,6 @@ Dự án này bao gồm 8 file Python minh họa cách tương tác với Giao d
 Ensure that you have the following Python Pakages installed in your PC:
 - `time`: `pip install time`
 - `pil`: `pip install pil`
-- `sqlite3`: `pip install sqlite3`
 - `os`: `pip install os`
 
 ### Configuration
