@@ -66,6 +66,31 @@ class ProductClass(QWidget):
             if label_text == "Danh mục":
                 self.cmb_cat = QComboBox()
                 self.cmb_cat.addItems(self.cat_list)
+
+                # Đổi chữ đen + nền trắng cho cả combobox và dropdown
+                self.cmb_cat.setStyleSheet("""
+                    QComboBox {
+                        color: black;                  /* chữ màu đen */
+                        background-color: white;       /* nền trắng cho phần hiển thị */
+                        border: 1px solid #ccc;        /* viền nhẹ nếu muốn */
+                        padding: 4px;
+                    }
+                    QComboBox QAbstractItemView {
+                        color: black;                  /* chữ đen trong dropdown */
+                        background-color: white;       /* nền trắng cho dropdown */
+                        selection-background-color: #3399FF;  /* nền xanh khi chọn item */
+                        selection-color: white;        /* chữ trắng khi chọn */
+                        border: 1px solid #ccc;
+                    }
+                    QComboBox::drop-down {
+                        border: 0px;
+                        width: 20px;
+                    }
+                    QComboBox::down-arrow {
+                        image: none;  /* hoặc url() nếu muốn icon mũi tên tùy chỉnh */
+                    }
+                """)
+
                 self.style_combo(self.cmb_cat)
                 grid.addWidget(self.cmb_cat, row, 1)
             elif label_text == "Nhà cung cấp":
@@ -210,6 +235,19 @@ class ProductClass(QWidget):
             QComboBox::down-arrow {
                 width: 12px; height: 12px;
                 margin-right: 10px;
+            }
+        """)
+
+    def force_black_text_combobox(self, combo: QComboBox):
+        combo.setStyleSheet("""
+            QComboBox {
+                color: black;
+                background-color: white;
+                padding: 4px;
+            }
+            QComboBox QAbstractItemView {
+                color: black;
+                background-color: white;
             }
         """)
 

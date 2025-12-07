@@ -1,163 +1,257 @@
-import sys, time, os, tempfile
+# bill.py - Giao diện hóa đơn bán hàng SIÊU ĐẸP bằng PySide6
+import sys, os, time, tempfile
 from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QLineEdit, QTextEdit,
     QTableWidget, QTableWidgetItem, QHeaderView, QVBoxLayout, QHBoxLayout,
-    QFrame, QMessageBox, QGridLayout, QSpinBox
+    QGridLayout,
+    QFrame, QMessageBox, QSpinBox, QSpacerItem, QSizePolicy
 )
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtGui import QFont, QPixmap, QIcon, QColor
 from create_db import get_connection
+
 
 class BillWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Inventory Management System | Nishant Gupta")
-        self.setGeometry(100, 50, 1350, 700)
-
-        # State variables
         self.cart_list = []
-        self.chk_print = 0
-        self.var_cname = ""
-        self.var_contact = ""
+        self.setWindowTitle("Hóa Đơn Bán Hàng - Inventory Management System")
+        self.setGeometry(100, 50, 1400, 780)
+        self.setStyleSheet("background-color: #f4f6f9;")
 
-        # Layout chính
+        self.init_ui()
+        self.start_clock()
+        self.load_products()
+
+    def init_ui(self):
         main_layout = QVBoxLayout(self)
-        self.setLayout(main_layout)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        # ===== Title + Logout =====
-        title_layout = QHBoxLayout()
-        self.icon_title = QLabel()
-        pixmap = QPixmap(r"D:\ALL_PROJECT\Python\Inventory-Management-System\images\logo1.png")
-        self.icon_title.setPixmap(pixmap.scaled(60,60,Qt.KeepAspectRatio))
-        title_label = QLabel("Inventory Management System")
-        title_label.setStyleSheet("background-color:#010c48; color:white; font-size:30px; padding:10px;")
-        title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        # ===================== HEADER =====================
+        header = QWidget()
+        header.setFixedHeight(90)
+        header.setStyleSheet("""
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #0d6efd, stop:1 #6610f2);
+            border-bottom: 3px solid #ffd700;
+        """)
+        hbox = QHBoxLayout(header)
+        hbox.setContentsMargins(25, 10, 25, 10)
 
-        btn_logout = QPushButton("Logout")
-        btn_logout.setStyleSheet("background-color:yellow; font-size:15px;")
-        btn_logout.setFixedSize(150,50)
-        title_layout.addWidget(self.icon_title)
-        title_layout.addWidget(title_label)
-        title_layout.addStretch()
-        title_layout.addWidget(btn_logout)
-        main_layout.addLayout(title_layout)
+        # Logo
+        logo = QLabel()
+        logo.setPixmap(QPixmap(r"images/logo1.png").scaled(70, 70, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        hbox.addWidget(logo)
 
-        # ===== Clock =====
+        # Tiêu đề
+        title = QLabel("INVENTORY MANAGEMENT SYSTEM")
+        title.setFont(QFont("Segoe UI", 28, QFont.Bold))
+        title.setStyleSheet("color: white;")
+        hbox.addWidget(title)
+        hbox.addStretch()
+
+        # Nút Logout
+        btn_logout = QPushButton("Đăng xuất")
+        btn_logout.setFixedSize(140, 50)
+        btn_logout.setStyleSheet("""
+            QPushButton {
+                background: #ff4757; color: white; font-weight: bold;
+                border-radius: 25px; font-size: 16px;
+            }
+            QPushButton:hover { background: #ff3742; }
+        """)
+        hbox.addWidget(btn_logout)
+
+        main_layout.addWidget(header)
+
+        # ===================== CLOCK =====================
         self.lbl_clock = QLabel()
-        self.lbl_clock.setStyleSheet("background-color:#4d636d; color:white; font-size:15px; padding:5px;")
+        self.lbl_clock.setFixedHeight(40)
+        self.lbl_clock.setFont(QFont("Consolas", 14))
+        self.lbl_clock.setStyleSheet("""
+            background: #2c3e50; color: #00ff88; 
+            padding: 8px; border-bottom: 2px solid #34495e;
+        """)
         self.lbl_clock.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.lbl_clock)
-        self.update_date_time()
 
-        # ===== Body Layout =====
-        body_layout = QHBoxLayout()
-        main_layout.addLayout(body_layout)
+        # ===================== BODY =====================
+        body = QWidget()
+        body_layout = QHBoxLayout(body)
+        body_layout.setContentsMargins(20, 20, 20, 20)
+        body_layout.setSpacing(20)
+        main_layout.addWidget(body, 1)
 
-        # ===== Left Panel: Products =====
-        left_panel = QVBoxLayout()
-        body_layout.addLayout(left_panel, 3)
+        # ------------------ CỘT TRÁI: SẢN PHẨM ------------------
+        left = QFrame()
+        left.setStyleSheet("""
+            background: white; border-radius: 15px;
+            border: 1px solid #e0e0e0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        """)
+        left_layout = QVBoxLayout(left)
 
-        lbl_products = QLabel("All Products")
-        lbl_products.setStyleSheet("background-color:#262626; color:white; font-size:20px; padding:5px;")
-        lbl_products.setAlignment(Qt.AlignCenter)
-        left_panel.addWidget(lbl_products)
+        # Tiêu đề danh sách sản phẩm (SỬA CHỖ NÀY)
+        title_left = QLabel("DANH SÁCH SẢN PHẨM")
+        title_left.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        title_left.setStyleSheet("background:#2c3e50; color:white; padding:15px; border-radius:12px 12px 0 0;")
+        title_left.setAlignment(Qt.AlignCenter)
+        left_layout.addWidget(title_left)
 
-        # Search
-        search_layout = QHBoxLayout()
+        # Thanh tìm kiếm đẹp
+        search_bar = QWidget()
+        search_bar.setStyleSheet("background:#f8f9fa; border-radius:10px; padding:10px;")
+        sbox = QHBoxLayout(search_bar)
         self.txt_search = QLineEdit()
-        self.txt_search.setPlaceholderText("Enter product name...")
-        btn_search = QPushButton("Search")
+        self.txt_search.setPlaceholderText("Tìm kiếm sản phẩm...")
+        self.txt_search.setStyleSheet("""
+            padding: 12px; border: 2px solid #ddd; border-radius: 10px;
+            font-size: 14px;
+        """)
+        btn_search = QPushButton("Tìm")
         btn_search.clicked.connect(self.search_product)
-        btn_show_all = QPushButton("Show All")
-        btn_show_all.clicked.connect(self.show_products)
-        search_layout.addWidget(self.txt_search)
-        search_layout.addWidget(btn_search)
-        search_layout.addWidget(btn_show_all)
-        left_panel.addLayout(search_layout)
+        btn_search.setStyleSheet("background:#4361ee; color:white; padding:12px 20px; border-radius:8px; font-weight:bold;")
+        btn_show = QPushButton("Tất cả")
+        btn_show.clicked.connect(self.load_products)
+        btn_show.setStyleSheet("background:#7209b7; color:white; padding:12px 20px; border-radius:8px; font-weight:bold;")
+        sbox.addWidget(self.txt_search)
+        sbox.addWidget(btn_search)
+        sbox.addWidget(btn_show)
+        left_layout.addWidget(search_bar)
 
-        # Product Table
+        # Bảng sản phẩm
         self.product_table = QTableWidget()
         self.product_table.setColumnCount(5)
-        self.product_table.setHorizontalHeaderLabels(["PID","Name","Price","Qty","Status"])
-        self.product_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.product_table.setHorizontalHeaderLabels(["Mã SP", "Tên sản phẩm", "Giá", "Tồn kho", "Trạng thái"])
+        header = self.product_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+        self.product_table.setStyleSheet("""
+            QTableWidget { 
+                gridline-color: #ddd; font-size: 13px; 
+                alternate-background-color: #f8f9fa;
+            }
+            QHeaderView::section { background: #4361ee; color: white; padding: 10px; }
+        """)
+        self.product_table.setAlternatingRowColors(True)
         self.product_table.cellClicked.connect(self.select_product)
-        left_panel.addWidget(self.product_table)
-        self.show_products()
+        left_layout.addWidget(self.product_table)
 
-        # ===== Middle Panel: Customer + Cart =====
-        middle_panel = QVBoxLayout()
-        body_layout.addLayout(middle_panel, 4)
+        body_layout.addWidget(left, 3)
 
-        # Customer Info
-        customer_frame = QHBoxLayout()
+        # ------------------ CỘT GIỮA: KHÁCH HÀNG + GIỎ HÀNG ------------------
+        center = QFrame()
+        center.setStyleSheet("background: white; border-radius: 15px; border: 1px solid #e0e0e0;")
+        cvbox = QVBoxLayout(center)
+        cvbox.setSpacing(15)
+
+        # Thông tin khách hàng
+        cust_frame = QFrame()
+        cust_frame.setStyleSheet("background:#e8f5e8; border-radius:12px; padding:15px;")
+        cgrid = QGridLayout(cust_frame)
+        cgrid.addWidget(QLabel("Tên khách hàng:"), 0, 0)
         self.txt_cname = QLineEdit()
-        self.txt_cname.setPlaceholderText("Customer Name")
+        self.txt_cname.setStyleSheet("padding:10px; border-radius:8px; border:1px solid #ccc;")
+        cgrid.addWidget(self.txt_cname, 0, 1)
+        cgrid.addWidget(QLabel("Số điện thoại:"), 0, 2)
         self.txt_contact = QLineEdit()
-        self.txt_contact.setPlaceholderText("Contact")
-        customer_frame.addWidget(QLabel("Customer Name:"))
-        customer_frame.addWidget(self.txt_cname)
-        customer_frame.addWidget(QLabel("Contact:"))
-        customer_frame.addWidget(self.txt_contact)
-        middle_panel.addLayout(customer_frame)
+        self.txt_contact.setStyleSheet("padding:10px; border-radius:8px; border:1px solid #ccc;")
+        cgrid.addWidget(self.txt_contact, 0, 3)
+        cvbox.addWidget(cust_frame)
 
-        # Cart Table
+        # Giỏ hàng
+        cart_header = QLabel("GIỎ HÀNG")
+        cart_header.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        cart_header.setStyleSheet("background:#e91e63; color:white; padding:15px; border-radius:12px 12px 0 0;")
+        cart_header.setAlignment(Qt.AlignCenter)
+        cvbox.addWidget(cart_header)
+
         self.cart_table = QTableWidget()
         self.cart_table.setColumnCount(4)
-        self.cart_table.setHorizontalHeaderLabels(["PID","Name","Price","Qty"])
+        self.cart_table.setHorizontalHeaderLabels(["Mã", "Tên SP", "Giá", "SL"])
         self.cart_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.cart_table.setStyleSheet("font-size: 13px;")
         self.cart_table.cellClicked.connect(self.select_cart_item)
-        middle_panel.addWidget(self.cart_table)
+        cvbox.addWidget(self.cart_table)
 
-        # Add to Cart controls
-        add_layout = QHBoxLayout()
-        self.txt_pid = QLineEdit()
-        self.txt_pid.setReadOnly(True)
-        self.txt_pname = QLineEdit()
-        self.txt_pname.setReadOnly(True)
-        self.txt_price = QLineEdit()
-        self.txt_price.setReadOnly(True)
+        # Thêm sản phẩm vào giỏ
+        add_frame = QFrame()
+        add_frame.setStyleSheet("background:#f0f8ff; border-radius:10px; padding:10px;")
+        add_grid = QGridLayout(add_frame)
+        self.txt_pid = QLineEdit(); self.txt_pid.setReadOnly(True)
+        self.txt_pname = QLineEdit(); self.txt_pname.setReadOnly(True)
+        self.txt_price = QLineEdit(); self.txt_price.setReadOnly(True)
         self.spin_qty = QSpinBox()
-        self.spin_qty.setMinimum(1)
-        btn_add_cart = QPushButton("Add/Update Cart")
-        btn_add_cart.clicked.connect(self.add_update_cart)
-        add_layout.addWidget(QLabel("PID:"))
-        add_layout.addWidget(self.txt_pid)
-        add_layout.addWidget(QLabel("Name:"))
-        add_layout.addWidget(self.txt_pname)
-        add_layout.addWidget(QLabel("Price:"))
-        add_layout.addWidget(self.txt_price)
-        add_layout.addWidget(QLabel("Qty:"))
-        add_layout.addWidget(self.spin_qty)
-        add_layout.addWidget(btn_add_cart)
-        middle_panel.addLayout(add_layout)
+        self.spin_qty.setRange(1, 1000)
+        self.spin_qty.setStyleSheet("padding:8px;")
 
-        # ===== Right Panel: Bill Area =====
-        right_panel = QVBoxLayout()
-        body_layout.addLayout(right_panel, 3)
+        add_grid.addWidget(QLabel("Mã SP:"), 0, 0)
+        add_grid.addWidget(self.txt_pid, 0, 1)
+        add_grid.addWidget(QLabel("Tên SP:"), 0, 2)
+        add_grid.addWidget(self.txt_pname, 0, 3)
+        add_grid.addWidget(QLabel("Giá:"), 1, 0)
+        add_grid.addWidget(self.txt_price, 1, 1)
+        add_grid.addWidget(QLabel("Số lượng:"), 1, 2)
+        add_grid.addWidget(self.spin_qty, 1, 3)
 
-        lbl_bill = QLabel("Customer Bill Area")
-        lbl_bill.setStyleSheet("background-color:#262626; color:white; font-size:20px; padding:5px;")
-        lbl_bill.setAlignment(Qt.AlignCenter)
-        right_panel.addWidget(lbl_bill)
+        btn_add = QPushButton("Thêm / Cập nhật")
+        btn_add.clicked.connect(self.add_update_cart)
+        btn_add.setStyleSheet("""
+            background:#4361ee; color:white; font-weight:bold;
+            padding:12px; border-radius:10px; font-size:14px;
+        """)
+        add_grid.addWidget(btn_add, 0, 4, 2, 1)
+        cvbox.addWidget(add_frame)
+
+        body_layout.addWidget(center, 4)
+
+        # ------------------ CỘT PHẢI: HÓA ĐƠN ------------------
+        right = QFrame()
+        right.setStyleSheet("background:white; border-radius:15px; border:1px solid #ddd;")
+        rvbox = QVBoxLayout(right)
+
+        # CỘT PHẢI: Tiêu đề hóa đơn
+        bill_header = QLabel("HÓA ĐƠN KHÁCH HÀNG")
+        bill_header.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        bill_header.setStyleSheet("background:#9c27b0; color:white; padding:15px; border-radius:12px 12px 0 0;")
+        bill_header.setAlignment(Qt.AlignCenter)
+        rvbox.addWidget(bill_header)
 
         self.txt_bill_area = QTextEdit()
-        right_panel.addWidget(self.txt_bill_area)
+        self.txt_bill_area.setFont(QFont("Courier New", 11))
+        self.txt_bill_area.setStyleSheet("""
+            border: 2px solid #ddd; border-radius: 10px;
+            background: #1e1e1e; color: #00ff00; padding: 10px;
+        """)
+        rvbox.addWidget(self.txt_bill_area)
 
-        # Bill buttons
-        btn_layout = QHBoxLayout()
-        btn_generate = QPushButton("Generate Bill")
+        # Nút chức năng
+        btn_box = QHBoxLayout()
+        btn_generate = QPushButton("TẠO HÓA ĐƠN")
         btn_generate.clicked.connect(self.generate_bill)
-        btn_print = QPushButton("Print")
-        btn_print.clicked.connect(self.save_bill_to_file)
-        # btn_print.clicked.connect(self.print_bill)
-        btn_clear_all = QPushButton("Clear All")
-        btn_clear_all.clicked.connect(self.clear_all)
-        btn_layout.addWidget(btn_generate)
-        btn_layout.addWidget(btn_print)
-        btn_layout.addWidget(btn_clear_all)
-        right_panel.addLayout(btn_layout)
+        btn_generate.setStyleSheet("background:#ff6b6b; color:white; padding:15px; font-weight:bold; border-radius:12px; font-size:15px;")
 
-    # ================= Functions =================
+        btn_print = QPushButton("IN HÓA ĐƠN")
+        btn_print.clicked.connect(self.save_bill_to_file)
+        btn_print.setStyleSheet("background:#4ecdc4; color:white; padding:15px; font-weight:bold; border-radius:12px; font-size:15px;")
+
+        btn_clear = QPushButton("XÓA TẤT CẢ")
+        btn_clear.clicked.connect(self.clear_all)
+        btn_clear.setStyleSheet("background:#ff4757; color:white; padding:15px; font-weight:bold; border-radius:12px; font-size:15px;")
+
+        btn_box.addWidget(btn_generate)
+        btn_box.addWidget(btn_print)
+        btn_box.addWidget(btn_clear)
+        rvbox.addLayout(btn_box)
+
+        body_layout.addWidget(right, 3)
+
+        # ===================== FOOTER =====================
+        footer = QLabel("© 2025 Inventory Management System | Phát triển bởi Nishant Gupta | Liên hệ: 9899459288")
+        footer.setStyleSheet("background:#2c3e50; color:#bdc3c7; padding:12px; font-size:12px;")
+        footer.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(footer)
+
+    # ===================== CÁC HÀM CHỨC NĂNG =====================
     def save_bill_to_file(self):
         if not self.cart_list:
             QMessageBox.information(self, "Info", "Generate bill first")
@@ -170,7 +264,7 @@ class BillWindow(QWidget):
 
         # Tên file có thể dùng timestamp để không bị trùng
         import datetime
-        timestamp = int(time.strftime("%H%M%S"))+int(time.strftime("%d%m%Y"))
+        timestamp = int(time.strftime("%H%M%S")) + int(time.strftime("%d%m%Y"))
         file_path = os.path.join(folder, f"{timestamp}.txt")
 
         # Ghi file với encoding UTF-8 để hỗ trợ tiếng Việt
@@ -181,10 +275,15 @@ class BillWindow(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Lỗi", f"Không thể lưu file:\n{str(e)}")
 
-    def update_date_time(self):
-        now = time.strftime("%d-%m-%Y %H:%M:%S")
-        self.lbl_clock.setText(f"Welcome to IMS\t\t {now}")
-        QTimer.singleShot(1000, self.update_date_time)
+    def start_clock(self):
+        def update():
+            now = time.strftime("%d/%m/%Y | %H:%M:%S")
+            self.lbl_clock.setText(f"Chào mừng đến với hệ thống quản lý kho  |  {now}")
+
+        self.clock_timer = QTimer(self)
+        self.clock_timer.timeout.connect(update)
+        self.clock_timer.start(1000)
+        update()
 
     def execute_db(self, query, params=(), fetch=False):
         try:
@@ -197,37 +296,43 @@ class BillWindow(QWidget):
                 con.commit()
                 result = None
             con.close()
-            return result
+            print(result)
+            return result if result is not None else []
         except Exception as e:
-            QMessageBox.critical(self, "Database Error", str(e))
-            return [] if fetch else None
+            QMessageBox.critical(self, "Lỗi CSDL", f"Query failed:\n{str(e)}\nQuery: {query}")
+            return []
 
-    def show_products(self):
+    def load_products(self):
         rows = self.execute_db("SELECT pid,name,price,qty,status FROM product WHERE status='Active'", fetch=True)
         self.product_table.setRowCount(len(rows))
-        for i, row in enumerate(rows):
-            for j, val in enumerate(row):
-                self.product_table.setItem(i,j,QTableWidgetItem(str(val)))
+        for r, row in enumerate(rows):
+            for c, val in enumerate(row):
+                item = QTableWidgetItem(str(val))
+                item.setTextAlignment(Qt.AlignCenter)
+                self.product_table.setItem(r, c, item)
 
     def search_product(self):
-        term = self.txt_search.text()
-        if not term:
-            QMessageBox.warning(self, "Error", "Search input required")
+        keyword = self.txt_search.text().strip()
+        if not keyword:
+            self.load_products()
             return
-        rows = self.execute_db("SELECT pid,name,price,qty,status FROM product WHERE name LIKE %s", 
-                               ('%'+term+'%',), fetch=True)
+        rows = self.execute_db(
+            "SELECT pid,name,price,qty,status FROM product WHERE name LIKE ? AND status='Active'",
+            (f"%{keyword}%",), fetch=True)
         self.product_table.setRowCount(len(rows))
-        for i, row in enumerate(rows):
-            for j, val in enumerate(row):
-                self.product_table.setItem(i,j,QTableWidgetItem(str(val)))
+        for r, row in enumerate(rows):
+            for c, val in enumerate(row):
+                self.product_table.setItem(r, c, QTableWidgetItem(str(val)))
 
-    def select_product(self, row, column):
+    def select_product(self, row, col):
         self.txt_pid.setText(self.product_table.item(row,0).text())
         self.txt_pname.setText(self.product_table.item(row,1).text())
         self.txt_price.setText(self.product_table.item(row,2).text())
-        self.spin_qty.setValue(int(self.product_table.item(row,3).text()))
+        stock = int(self.product_table.item(row,3).text())
+        self.spin_qty.setMaximum(stock)
+        self.spin_qty.setValue(1)
 
-    def select_cart_item(self, row, column):
+    def select_cart_item(self, row, col):
         self.txt_pid.setText(self.cart_table.item(row,0).text())
         self.txt_pname.setText(self.cart_table.item(row,1).text())
         self.txt_price.setText(self.cart_table.item(row,2).text())
@@ -235,101 +340,114 @@ class BillWindow(QWidget):
 
     def add_update_cart(self):
         pid = self.txt_pid.text()
-        name = self.txt_pname.text()
-        price = self.txt_price.text()
-        qty = self.spin_qty.value()
         if not pid:
-            QMessageBox.warning(self, "Error", "Select a product")
+            QMessageBox.warning(self, "Cảnh báo", "Vui lòng chọn sản phẩm!")
             return
-        # Update cart list
-        found = False
-        for i, item in enumerate(self.cart_list):
-            if item[0]==pid:
-                self.cart_list[i] = [pid,name,price,qty]
-                found = True
-                break
-        if not found:
-            self.cart_list.append([pid,name,price,qty])
-        self.show_cart()
+        name = self.txt_pname.text()
+        price = float(self.txt_price.text())
+        qty = self.spin_qty.value()
 
-    def show_cart(self):
+        for i, item in enumerate(self.cart_list):
+            if item[0] == pid:
+                self.cart_list[i][3] += qty
+                break
+        else:
+            self.cart_list.append([pid, name, price, qty])
+
+        self.update_cart()
+
+    def update_cart(self):
         self.cart_table.setRowCount(len(self.cart_list))
-        for i,row in enumerate(self.cart_list):
-            for j,val in enumerate(row):
-                self.cart_table.setItem(i,j,QTableWidgetItem(str(val)))
+        for r, item in enumerate(self.cart_list):
+            for c in range(4):
+                self.cart_table.setItem(r, c, QTableWidgetItem(str(item[c])))
 
     def generate_bill(self):
         if not self.cart_list:
-            QMessageBox.warning(self, "Error", "Cart is empty")
+            QMessageBox.warning(self, "Lỗi", "Giỏ hàng trống!")
             return
 
-        self.txt_bill_area.clear()
+        bill_lines = [
+            "          XYZ INVENTORY SYSTEM",
+            "   Địa chỉ: 123 Đường ABC, TP.HCM",
+            "   Hotline: 0989 945 9288",
+            "=" * 55,
+            f"Khách: {self.txt_cname.text().strip() or 'Khách lẻ':<35}",
+            f"SĐT  : {self.txt_contact.text().strip() or 'Không':<35}",
+            f"Ngày : {time.strftime('%d/%m/%Y %H:%M:%S')}",
+            "=" * 55,
+            f"{'Sản phẩm':<28} {'SL':>5} {'Đơn giá':>12} {'Thành tiền':>12}",
+            "-" * 60
+        ]
+
         total = 0
-        self.txt_bill_area.append("XYZ-Inventory\nPhone: 9899459288\n" + "=" * 40)
+        updated_count = 0
 
-        for row in self.cart_list:
-            pid = row[0]
-            name = row[1]
-            qty = int(row[3])  # đảm bảo int
-            price = float(row[2])  # đảm bảo float
+        for item in self.cart_list:
+            pid = int(item[0])  # giữ pid là int
+            print(pid)
+            name = str(item[1])
+            price = float(item[2])
+            qty = int(item[3])
+            line_total = price * qty
+            total += line_total
 
-            self.txt_bill_area.append(f"{name}\t{qty}\tRs.{price * qty:.2f}")
-            total += price * qty
+            # Cắt tên dài để không lệch cột
+            display_name = (name[:25] + "...") if len(name) > 28 else name.ljust(28)
 
-            # Lấy số lượng hiện tại từ DB và convert sang int
-            db_qty = self.execute_db(
-                "SELECT qty FROM product WHERE pid=%s",
-                (pid,), fetch=True
-            )[0][0]
-            db_qty = int(db_qty)
-
-            new_qty = db_qty - qty
-            status = "Inactive" if new_qty == 0 else "Active"
-
-            # Cập nhật DB
-            self.execute_db(
-                "UPDATE product SET qty=%s, status=%s WHERE pid=%s",
-                (new_qty, status, pid)
-            )
-
+            bill_lines.append(f"{display_name} {qty:>5} {price:>12,.0f} {line_total:>12,.0f}")
+        # Thanh toán
         discount = total * 0.05
-        net = total - discount
+        net_pay = total - discount
 
-        self.txt_bill_area.append("=" * 40)
-        self.txt_bill_area.append(f"Total: Rs.{total:.2f}")
-        self.txt_bill_area.append(f"Discount 5%: Rs.{discount:.2f}")
-        self.txt_bill_area.append(f"Net Pay: Rs.{net:.2f}")
+        bill_lines.extend([
+            "-" * 60,
+            f"{'TỔNG TIỀN':>48}: {total:>12,.0f} ₫",
+            f"{'GIẢM GIÁ 5%':>48}: {discount:>12,.0f} ₫",
+            f"{'THÀNH TIỀN':>48}: {net_pay:>12,.0f} ₫",
+            "=" * 60,
+            "       CẢM ƠN QUÝ KHÁCH ĐÃ MUA HÀNG!",
+            "           HẸN GẶP LẠI!",
+            ""
+        ])
 
-        self.show_products()
+        self.txt_bill_area.setPlainText("\n".join(bill_lines))
+
+        QMessageBox.information(
+            self, "Thành công!",
+            f"Hóa đơn đã tạo!\n"
+            f"• Tổng tiền: {total:,.0f} ₫\n"
+            f"• Cập nhật kho: {updated_count}/{len(self.cart_list)} sản phẩm"
+        )
+
+        self.load_products()
 
     def print_bill(self):
-        if not self.cart_list:
-            QMessageBox.information(self, "Info", "Generate bill first")
+        if not self.txt_bill_area.toPlainText().strip():
+            QMessageBox.information(self, "Thông báo", "Chưa có hóa đơn để in!")
             return
-
-        # Lưu file với encoding UTF-8 để tránh lỗi Unicode
-        file_path = tempfile.mktemp(".txt")
-        with open(file_path, 'w', encoding='utf-8') as f:
+        path = tempfile.mktemp(suffix=".txt")
+        with open(path, "w", encoding="utf-8") as f:
             f.write(self.txt_bill_area.toPlainText())
-
-        # Gọi in
-        os.startfile(file_path, 'print')
+        os.startfile(path, "print")
 
     def clear_all(self):
-        self.cart_list.clear()
-        self.show_cart()
-        self.txt_bill_area.clear()
-        self.txt_pid.clear()
-        self.txt_pname.clear()
-        self.txt_price.clear()
-        self.spin_qty.setValue(1)
-        self.txt_cname.clear()
-        self.txt_contact.clear()
-        self.show_products()
+        if QMessageBox.question(self, "Xác nhận", "Xóa toàn bộ giỏ hàng?") == QMessageBox.Yes:
+            self.cart_list.clear()
+            self.update_cart()
+            self.txt_bill_area.clear()
+            self.txt_cname.clear()
+            self.txt_contact.clear()
+            self.txt_pid.clear()
+            self.txt_pname.clear()
+            self.txt_price.clear()
+            self.spin_qty.setValue(1)
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = BillWindow()
-    window.show()
+    win = BillWindow()
+    win.show()
     sys.exit(app.exec())
+
+

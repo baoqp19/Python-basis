@@ -5,8 +5,11 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QVBoxLayout,
     QHBoxLayout, QGridLayout, QFrame, QMessageBox, QStackedWidget
 )
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtGui import QFont, QPixmap, QColor, QPalette
 from PySide6.QtCore import Qt, QTimer
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+
 from create_db import create_db, get_connection
 from employee import EmployeeApp
 from category import CategoryWindow
@@ -17,12 +20,28 @@ from product import ProductClass
 # Tạo DB nếu chưa có
 create_db()
 
+from PySide6.QtWidgets import QStyleFactory
 class IMS(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Inventory Management System")
         self.setGeometry(200, 100, 1350, 700)
-        self.setStyleSheet("background-color: white;")
+        # self.setStyleSheet("background-color: white;")
+        QApplication.setStyle("Fusion")
+
+        palette = QPalette()
+        # ĐÚNG TÊN ROLE Ở ĐÂY (không phải palette.Window mà là QPalette.ColorRole.Window)
+        palette.setColor(QPalette.ColorRole.Window, QColor(255, 255, 255))  # nền cửa sổ
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(0, 0, 0))  # chữ trên nền cửa sổ
+        palette.setColor(QPalette.ColorRole.Base, QColor(255, 255, 255))  # nền QLineEdit, QComboBox, QTextEdit
+        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(245, 245, 245))
+        palette.setColor(QPalette.ColorRole.Text, QColor(0, 0, 0))  # chữ trong input/combobox
+        palette.setColor(QPalette.ColorRole.Button, QColor(240, 240, 240))
+        palette.setColor(QPalette.ColorRole.ButtonText, QColor(0, 0, 0))
+        palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 120, 215))  # chọn item trong combobox/table
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor(255, 255, 255))
+
+        QApplication.setPalette(palette)
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -40,18 +59,31 @@ class IMS(QMainWindow):
         timer.start(1000)
 
     def init_title(self):
+        # Thanh tiêu đề (title bar)
         title_widget = QWidget()
         title_widget.setStyleSheet("background-color: #010c48;")
         title_layout = QHBoxLayout(title_widget)
+        title_layout.setContentsMargins(20, 10, 20, 10)  # lề đẹp
+        title_layout.setSpacing(15)
 
+        # Logo bên trái
         logo = QLabel()
-        logo.setPixmap(QPixmap(r"D:\ALL_PROJECT\Python\Inventory-Management-System\images\logo1.png").scaled(60, 60))
+        pixmap = QPixmap(r"D:\ALL_PROJECT\Python\Inventory-Management-System\images\logo1.png")
+        logo.setPixmap(pixmap.scaled(60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        logo.setFixedSize(60, 60)
+        title_layout.addWidget(logo)
+
+        # Tiêu đề nằm chính giữa (dùng addStretch)
         title_label = QLabel("Inventory Management System")
         title_label.setFont(QFont("Times New Roman", 32, QFont.Bold))
         title_label.setStyleSheet("color: white;")
-        title_layout.addWidget(logo)
-        title_layout.addWidget(title_label)
+        title_label.setAlignment(Qt.AlignCenter)  # căn giữa chữ trong label
 
+        title_layout.addStretch()  # đẩy logo sang trái
+        title_layout.addWidget(title_label)  # chữ nằm giữa
+        title_layout.addStretch()  # đẩy chữ vào giữa thật sự
+
+        # Thêm vào layout chính
         self.main_layout.addWidget(title_widget)
 
     def init_clock(self):
@@ -105,7 +137,7 @@ class IMS(QMainWindow):
 
         # ---------- Tạo các button menu ----------
         self.menu_buttons = {}
-        for name in ["Dashboard", "Employee", "Supplier", "Category", "Products", "Sales", "Exit"]:
+        for name in ["Dashboard", "Employee", "Supplier", "Category", "Products", "Sales","Billing", "Exit"]:
             btn = QPushButton(name)
             btn.setStyleSheet(btn_style)
             left_menu.addWidget(btn)
@@ -113,88 +145,68 @@ class IMS(QMainWindow):
 
         body_layout.addWidget(menu_frame)
 
-        # ---------- Stacked Widget cho body ----------
+        # ---------- Stacked Widget cho phần nội dung chính ----------
         self.stacked_widget = QStackedWidget()
-        body_layout.addWidget(self.stacked_widget)
+        body_layout.addWidget(self.stacked_widget, stretch=1)
 
-        # ----- Dashboard Screen -----
-        self.dashboard_screen = QWidget()
-        dashboard_layout = QGridLayout()
-        self.dashboard_screen.setLayout(dashboard_layout)
+        # ===== TẠO CÁC MÀN HÌNH =====
+        # Dashboard (biểu đồ tròn Matplotlib) – index 0
+        self.dashboard_screen = self.create_modern_dashboard()
+        self.stacked_widget.addWidget(self.dashboard_screen)
 
-        # ----- Employee Screen -----
+        # Employee – index 1
         self.employee_screen = EmployeeApp()
         self.stacked_widget.addWidget(self.employee_screen)
 
-        self.menu_buttons["Employee"].clicked.connect(
-            lambda: self.stacked_widget.setCurrentWidget(self.employee_screen)
-        )
-
-        # ----- Supplier Screen -----
+        # Supplier – index 2
         self.supplier_screen = SupplierWindow()
         self.stacked_widget.addWidget(self.supplier_screen)
 
-        self.menu_buttons["Supplier"].clicked.connect(
-            lambda: self.stacked_widget.setCurrentWidget(self.supplier_screen)
-        )
-
-        # ----- Category Screen -----
+        # Category – index 3
         self.category_screen = CategoryWindow()
         self.stacked_widget.addWidget(self.category_screen)
 
-        self.menu_buttons["Category"].clicked.connect(
-            lambda: self.stacked_widget.setCurrentWidget(self.category_screen)
-        )
-
-        # ----- Products Screen -----
+        # Products – index 4
         self.products_screen = ProductClass()
         self.stacked_widget.addWidget(self.products_screen)
 
-        self.menu_buttons["Products"].clicked.connect(
-            lambda: self.stacked_widget.setCurrentWidget(self.products_screen)
-        )
-
-        # ----- Sales Screen -----
+        # Sales – index 5
         self.sales_screen = SalesClass()
         self.stacked_widget.addWidget(self.sales_screen)
 
-        self.menu_buttons["Sales"].clicked.connect(
-            lambda: self.stacked_widget.setCurrentWidget(self.sales_screen)
+        # Sales – index 6
+        self.billing_screen = BillWindow()
+        self.stacked_widget.addWidget(self.billing_screen)
+
+        # ===== HIỂN THỊ DASHBOARD MẶC ĐỊNH =====
+        self.stacked_widget.setCurrentIndex(0)  # hoặc setCurrentWidget(self.dashboard_screen)
+
+        # ===== KẾT NỐI NÚT MENU TRÁI =====
+        self.menu_buttons["Dashboard"].clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
+        self.menu_buttons["Employee"].clicked.connect(
+            lambda: self.switch_to_screen(1, EmployeeApp)
         )
 
-        def stat_card(text, color):
-            lbl = QLabel(text)
-            lbl.setFont(QFont("Goudy Old Style", 18, QFont.Bold))
-            lbl.setStyleSheet(f"background-color:{color}; color:white; border-radius:10px;")
-            lbl.setAlignment(Qt.AlignCenter)
-            lbl.setFixedSize(300, 150)
-            return lbl
+        self.menu_buttons["Supplier"].clicked.connect(
+            lambda: self.switch_to_screen(2, SupplierWindow)
+        )
 
-        self.lbl_employee = stat_card("Total Employee\n[ 0 ]", "#33bbf9")
-        self.lbl_supplier = stat_card("Total Supplier\n[ 0 ]", "#ff5722")
-        self.lbl_category = stat_card("Total Category\n[ 0 ]", "#009688")
-        self.lbl_product = stat_card("Total Product\n[ 0 ]", "#607d8b")
-        self.lbl_sales = stat_card("Total Sales\n[ 0 ]", "#ffc107")
+        self.menu_buttons["Category"].clicked.connect(
+            lambda: self.switch_to_screen(3, CategoryWindow)
+        )
 
-        dashboard_layout.addWidget(self.lbl_employee, 0, 0)
-        dashboard_layout.addWidget(self.lbl_supplier, 0, 1)
-        dashboard_layout.addWidget(self.lbl_category, 0, 2)
-        dashboard_layout.addWidget(self.lbl_product, 1, 0)
-        dashboard_layout.addWidget(self.lbl_sales, 1, 1)
-        dashboard_layout.setAlignment(Qt.AlignTop)
+        self.menu_buttons["Products"].clicked.connect(
+            lambda: self.switch_to_screen(4, ProductClass)
+        )
 
-        self.stacked_widget.addWidget(self.dashboard_screen)  # index 0
+        self.menu_buttons["Sales"].clicked.connect(
+            lambda: self.switch_to_screen(5, SalesClass)
+        )
 
-        # ----- Employee Screen -----
-        self.employee_screen = EmployeeApp()
-        self.stacked_widget.addWidget(self.employee_screen)  # index 1
+        self.menu_buttons["Billing"].clicked.connect(
+            lambda: self.switch_to_screen(6, BillWindow)
+        )
 
-        # Hiển thị dashboard mặc định
-        self.stacked_widget.setCurrentWidget(self.dashboard_screen)
-
-        # ----- Nối sự kiện nút menu -----
-        self.menu_buttons["Dashboard"].clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.dashboard_screen))
-        self.menu_buttons["Employee"].clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.employee_screen))
         self.menu_buttons["Exit"].clicked.connect(self.close)
 
     def init_footer(self):
@@ -204,35 +216,162 @@ class IMS(QMainWindow):
         footer.setStyleSheet("background-color:#4d636d; color:white; padding:5px;")
         self.main_layout.addWidget(footer)
 
-    def update_content(self):
+    def create_modern_dashboard(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(30, 30, 30, 30)
+
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+
+        self.figure = Figure(figsize=(10, 8), facecolor="white")
+        self.canvas = FigureCanvas(self.figure)
+        layout.addWidget(self.canvas)
+
+        # Vẽ lần đầu
+        self.update_dashboard_charts()
+
+        return widget
+
+    def switch_to_screen(self, index, screen_class=None):
+        # Xóa màn hình cũ tại index (nếu có)
+        old_widget = self.stacked_widget.widget(index)
+        if old_widget:
+            self.stacked_widget.removeWidget(old_widget)
+            old_widget.deleteLater()  # giải phóng bộ nhớ
+
+        # Tạo mới màn hình
+        if screen_class:
+            new_screen = screen_class()
+            self.stacked_widget.insertWidget(index, new_screen)
+            self.stacked_widget.setCurrentIndex(index)
+
+    def update_dashboard_charts(self):
+        """Biểu đồ tròn + bảng mô tả đẹp – ĐÃ FIX HOÀN TOÀN LỖI TABLE"""
         try:
             con = get_connection()
             cur = con.cursor()
 
-            cur.execute("SELECT COUNT(*) FROM product")
-            self.lbl_product.setText(f"Total Product\n[ {cur.fetchone()[0]} ]")
+            cur.execute("SELECT COUNT(*) FROM employee");
+            emp = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM supplier");
+            sup = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM category");
+            cat = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM product");
+            pro = cur.fetchone()[0]
 
-            cur.execute("SELECT COUNT(*) FROM category")
-            self.lbl_category.setText(f"Total Category\n[ {cur.fetchone()[0]} ]")
-
-            cur.execute("SELECT COUNT(*) FROM employee")
-            self.lbl_employee.setText(f"Total Employee\n[ {cur.fetchone()[0]} ]")
-
-            cur.execute("SELECT COUNT(*) FROM supplier")
-            self.lbl_supplier.setText(f"Total Supplier\n[ {cur.fetchone()[0]} ]")
-
-            bill_count = len(os.listdir(r"D:\ALL_PROJECT\Python\Inventory-Management-System\bill"))
-            self.lbl_sales.setText(f"Total Sales\n[ {bill_count} ]")
-
-            # Update thời gian
-            time_ = time.strftime("%I:%M:%S %p")
-            date_ = time.strftime("%d-%m-%Y")
-            self.lbl_clock.setText(f"Welcome | Date: {date_} | Time: {time_}")
+            bill_path = r"D:\ALL_PROJECT\Python\Inventory-Management-System\bill"
+            sales = len(os.listdir(bill_path)) if os.path.exists(bill_path) else 0
 
             con.close()
-        except Exception as ex:
-            QMessageBox.critical(self, "Error", f"Error: {ex}")
 
+            values = [emp, sup, cat, pro, sales]
+            labels = ['Nhân viên', 'Nhà cung cấp', 'Danh mục', 'Sản phẩm', 'Đơn bán hàng']
+            colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6']
+            total = sum(values)
+
+            self.figure.clear()
+
+            # === BIỂU ĐỒ TRÒN BÊN TRÁI ===
+            ax_pie = self.figure.add_axes([0.05, 0.1, 0.5, 0.8])
+            wedges, texts, autotexts = ax_pie.pie(
+                values,
+                autopct=lambda pct: f"{pct:.1f}%" if pct >= 4 else "",
+                colors=colors,
+                startangle=90,
+                wedgeprops=dict(width=0.4, edgecolor='white', linewidth=3),
+                textprops=dict(color="white", fontsize=13, fontweight='bold'),
+                pctdistance=0.75
+            )
+
+            # Tổng ở giữa
+            if total > 0:
+                ax_pie.text(0, 0, f"{total:,}\nTổng", ha='center', va='center',
+                            fontsize=36, fontweight='bold', color='#2c3e50')
+            ax_pie.set_aspect('equal')
+            ax_pie.axis('off')
+
+            # === BẢNG MÔ TẢ BÊN PHẢI ===
+            ax_table = self.figure.add_axes([0.62, 0.2, 0.35, 0.6])
+            ax_table.axis('off')
+
+            # Tiêu đề bảng
+            ax_table.text(0.5, 0.92, "CHI TIẾT THỐNG KÊ", ha='center', va='top',
+                          fontsize=18, fontweight='bold', color='#2c3e50', transform=ax_table.transAxes)
+
+            # Dữ liệu bảng
+            cell_text = []
+            for i, (label, val) in enumerate(zip(labels, values)):
+                percent = (val / total * 100) if total > 0 else 0
+                cell_text.append([label, f"{val:,}", f"{percent:.1f}%"])
+
+            # Tạo bảng
+            table = ax_table.table(
+                cellText=cell_text,
+                colLabels=['Danh mục', 'Số lượng', 'Tỷ lệ'],
+                cellLoc='center',
+                loc='center',
+                bbox=[0, 0, 1, 0.8],
+                colWidths=[0.5, 0.25, 0.25]
+            )
+
+            table.auto_set_font_size(False)
+            table.set_fontsize(12)
+
+            # Định dạng từng cell
+            for i in range(len(labels)):
+                for j in range(3):
+                    cell = table[(i + 1, j)]
+                    cell.set_height(0.12)
+                    if j == 0:  # cột tên danh mục
+                        cell.get_text().set_color('white')
+                        cell.set_facecolor(colors[i])
+                        cell.get_text().set_fontweight('bold')
+                    else:
+                        cell.set_facecolor('white')
+                        if values[i] == 0:
+                            cell.get_text().set_color('#999')
+                        else:
+                            cell.get_text().set_fontweight('bold')
+
+            # Header bảng
+            for j in range(3):
+                table[(0, j)].set_facecolor('#34495e')
+                table[(0, j)].get_text().set_color('white')
+                table[(0, j)].get_text().set_fontweight('bold')
+
+            # === TIÊU ĐỀ CHÍNH + THỜI GIAN ===
+            self.figure.suptitle("TỔNG QUAN HỆ THỐNG", fontsize=28, fontweight='bold',
+                                 color='#2c3e50', y=0.98)
+
+            now = time.strftime("%d/%m/%Y - %H:%M:%S")
+            self.figure.text(0.5, 0.02, f"Cập nhật lúc: {now}", ha='center',
+                             fontsize=11, color='#7f8c8d')
+
+            self.canvas.draw()
+
+        except Exception as e:
+            print(f"Lỗi biểu đồ: {e}")
+
+    def update_content(self):
+        """Cập nhật đồng hồ và biểu đồ dashboard mỗi giây"""
+        try:
+            # === CẬP NHẬT ĐỒNG HỒ ===
+            current_time = time.strftime("%I:%M:%S %p")
+            current_date = time.strftime("%d-%m-%Y")
+            self.lbl_clock.setText(f"Welcome | Date: {current_date} | Time: {current_time}")
+
+            # === CẬP NHẬT BIỂU ĐỒ TRÒN (nếu đang ở Dashboard) ===
+            # Chỉ gọi khi đã có hàm và canvas Matplotlib
+            if hasattr(self, 'update_dashboard_charts'):
+                self.update_dashboard_charts()
+
+        except Exception as ex:
+            # Nếu có lỗi (ví dụ mất kết nối DB), chỉ in ra console, không làm crash app
+            print(f"Lỗi cập nhật dashboard: {ex}")
+            # Hoặc hiện thông báo nhẹ (tùy bạn)
+            # QMessageBox.warning(self, "Cảnh báo", "Không thể cập nhật dữ liệu thống kê!")
 # ----------- RUN APP ------------
 if __name__ == "__main__":
     try:
