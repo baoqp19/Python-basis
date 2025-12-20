@@ -5,11 +5,9 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QVBoxLayout,
     QHBoxLayout, QGridLayout, QFrame, QMessageBox, QStackedWidget
 )
+
 from PySide6.QtGui import QFont, QPixmap, QColor, QPalette
 from PySide6.QtCore import Qt, QTimer
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-
 from create_db import create_db, get_connection
 from employee import EmployeeApp
 from category import CategoryWindow
@@ -20,25 +18,23 @@ from product import ProductClass
 # Tạo DB nếu chưa có
 create_db()
 
-from PySide6.QtWidgets import QStyleFactory
 class IMS(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Inventory Management System")
-        self.setGeometry(200, 100, 1350, 700)
-        # self.setStyleSheet("background-color: white;")
+        self.setGeometry(0, 0, 850, 500)
+        # nền trắng, chữ đen, button xám
         QApplication.setStyle("Fusion")
 
         palette = QPalette()
-        # ĐÚNG TÊN ROLE Ở ĐÂY (không phải palette.Window mà là QPalette.ColorRole.Window)
-        palette.setColor(QPalette.ColorRole.Window, QColor(255, 255, 255))  # nền cửa sổ
-        palette.setColor(QPalette.ColorRole.WindowText, QColor(0, 0, 0))  # chữ trên nền cửa sổ
-        palette.setColor(QPalette.ColorRole.Base, QColor(255, 255, 255))  # nền QLineEdit, QComboBox, QTextEdit
+        palette.setColor(QPalette.ColorRole.Window, QColor(255, 255, 255))
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(0, 0, 0))
+        palette.setColor(QPalette.ColorRole.Base, QColor(255, 255, 255))
         palette.setColor(QPalette.ColorRole.AlternateBase, QColor(245, 245, 245))
-        palette.setColor(QPalette.ColorRole.Text, QColor(0, 0, 0))  # chữ trong input/combobox
+        palette.setColor(QPalette.ColorRole.Text, QColor(0, 0, 0))
         palette.setColor(QPalette.ColorRole.Button, QColor(240, 240, 240))
         palette.setColor(QPalette.ColorRole.ButtonText, QColor(0, 0, 0))
-        palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 120, 215))  # chọn item trong combobox/table
+        palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 120, 215))
         palette.setColor(QPalette.ColorRole.HighlightedText, QColor(255, 255, 255))
 
         QApplication.setPalette(palette)
@@ -234,11 +230,11 @@ class IMS(QMainWindow):
         return widget
 
     def switch_to_screen(self, index, screen_class=None):
-        # Xóa màn hình cũ tại index (nếu có)
+
         old_widget = self.stacked_widget.widget(index)
         if old_widget:
             self.stacked_widget.removeWidget(old_widget)
-            old_widget.deleteLater()  # giải phóng bộ nhớ
+            old_widget.deleteLater()
 
         # Tạo mới màn hình
         if screen_class:
@@ -247,8 +243,8 @@ class IMS(QMainWindow):
             self.stacked_widget.setCurrentIndex(index)
 
     def update_dashboard_charts(self):
-        """Biểu đồ tròn + bảng mô tả đẹp – ĐÃ FIX HOÀN TOÀN LỖI TABLE"""
         try:
+
             con = get_connection()
             cur = con.cursor()
 
@@ -355,7 +351,6 @@ class IMS(QMainWindow):
             print(f"Lỗi biểu đồ: {e}")
 
     def update_content(self):
-        """Cập nhật đồng hồ và biểu đồ dashboard mỗi giây"""
         try:
             # === CẬP NHẬT ĐỒNG HỒ ===
             current_time = time.strftime("%I:%M:%S %p")
@@ -370,8 +365,7 @@ class IMS(QMainWindow):
         except Exception as ex:
             # Nếu có lỗi (ví dụ mất kết nối DB), chỉ in ra console, không làm crash app
             print(f"Lỗi cập nhật dashboard: {ex}")
-            # Hoặc hiện thông báo nhẹ (tùy bạn)
-            # QMessageBox.warning(self, "Cảnh báo", "Không thể cập nhật dữ liệu thống kê!")
+
 # ----------- RUN APP ------------
 if __name__ == "__main__":
     try:

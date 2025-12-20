@@ -144,7 +144,7 @@ class ProductClass(QWidget):
         search_bar = QHBoxLayout()
         search_bar.addWidget(QLabel("Tìm kiếm theo:"))
         self.cmb_search = QComboBox()
-        self.cmb_search.addItems(["Chọn", "Danh mục", "Nhà cung cấp", "Tên sản phẩm"])
+        self.cmb_search.addItems(["Chọn", "Category", "Supplier", "name"])
         self.style_combo(self.cmb_search, width=180)
 
         self.txt_search = QLineEdit()
@@ -238,18 +238,6 @@ class ProductClass(QWidget):
             }
         """)
 
-    def force_black_text_combobox(self, combo: QComboBox):
-        combo.setStyleSheet("""
-            QComboBox {
-                color: black;
-                background-color: white;
-                padding: 4px;
-            }
-            QComboBox QAbstractItemView {
-                color: black;
-                background-color: white;
-            }
-        """)
 
     def create_button(self, text, color, callback):
         btn = QPushButton(text)
@@ -356,17 +344,17 @@ class ProductClass(QWidget):
             cur = con.cursor()
             cur.execute("SELECT * FROM product WHERE name=%s", (name,))
             if cur.fetchone():
-                QMessageBox.warning(self, "Error", "Product already exists")
+                QMessageBox.warning(self, "Lỗi", "Sẩn phần đã tồn tại")
             else:
                 cur.execute("INSERT INTO product(Category,Supplier,name,price,qty,status) VALUES(%s,%s,%s,%s,%s,%s)",
                             (cat, sup, name, price, qty, status))
                 con.commit()
-                self.toast("Product Added Successfully")
+                self.toast("Sản phẩm đã được thêm thành công")
                 self.clear_form()
                 self.show_data()
             con.close()
         except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
+            QMessageBox.critical(self, "Lỗi", str(e))
 
     def show_data(self):
         try:
@@ -381,6 +369,7 @@ class ProductClass(QWidget):
             con.close()
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
+
 
     def load_from_table(self, row, col):
         self.var_pid = self.table.item(row, 0).text()
@@ -466,11 +455,10 @@ class ProductClass(QWidget):
             else:
                 QMessageBox.information(self, "Thành công", "Xóa sản phẩm thành công!")
                 con.commit()
-                self.show_data()  # Nếu bạn có hàm tải lại bảng
+                self.show_data()
 
             con.close()
 
-            # Thông báo thành công đẹp lung linh
             success_msg = QMessageBox(self)
             success_msg.setWindowTitle("Thành công")
             success_msg.setIcon(QMessageBox.Information)
@@ -526,7 +514,7 @@ class ProductClass(QWidget):
         searchby = self.cmb_search.currentText()
         txt = self.txt_search.text()
         if searchby == "Select" or txt == "":
-            QMessageBox.warning(self, "Error", "Select search option and input text")
+            QMessageBox.warning(self, "Lỗi", "Lựa chọn trường để tìm kiếm")
             return
         try:
             con = get_connection()
@@ -540,7 +528,7 @@ class ProductClass(QWidget):
                     self.table.setItem(i, j, QTableWidgetItem(str(val)))
             con.close()
         except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
+            QMessageBox.critical(self, "Lỗi", str(e))
 
 
 if __name__ == "__main__":
