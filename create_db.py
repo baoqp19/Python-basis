@@ -43,12 +43,31 @@ def create_db():
     """)
 
     # Bảng category
+    # Bảng product (ĐÃ VIẾT LẠI)
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS category(
-            cid INT PRIMARY KEY AUTO_INCREMENT,
-            name VARCHAR(100)
-        )
-    """)
+                CREATE TABLE IF NOT EXISTS product
+                (
+                    pid         INT PRIMARY KEY AUTO_INCREMENT,
+                    category_id INT NOT NULL,
+                    supplier_id INT NOT NULL,
+                    name        VARCHAR(100),
+                    price       DECIMAL(10, 2),
+                    qty         INT,
+                    status      VARCHAR(20),
+
+                    CONSTRAINT fk_product_category
+                        FOREIGN KEY (category_id)
+                            REFERENCES category (cid)
+                            ON UPDATE CASCADE
+                            ON DELETE RESTRICT,
+
+                    CONSTRAINT fk_product_supplier
+                        FOREIGN KEY (supplier_id)
+                            REFERENCES supplier (invoice)
+                            ON UPDATE CASCADE
+                            ON DELETE RESTRICT
+                ) ENGINE = InnoDB
+                """)
 
     # Bảng product
     cur.execute("""

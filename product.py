@@ -330,29 +330,55 @@ class ProductClass(QWidget):
             QMessageBox.critical(self, "Error", str(e))
 
     def add_product(self):
-        cat = self.cmb_cat.currentText()
-        sup = self.cmb_sup.currentText()
-        name = self.txt_name.text()
-        price = self.txt_price.text()
-        qty = self.txt_qty.text()
+        cat_name = self.cmb_cat.currentText()
+        sup_name = self.cmb_sup.currentText()
+        name = self.txt_name.text().strip()
+        price = self.txt_price.text().strip()
+        qty = self.txt_qty.text().strip()
         status = self.cmb_status.currentText()
-        if cat == "Select" or sup == "Select" or name == "":
+
+        if cat_name == "Select" or sup_name == "Select" or name == "":
             self.toast_error("Nhập đầy đủ thông tin")
             return
+
         try:
             con = get_connection()
             cur = con.cursor()
-            cur.execute("SELECT * FROM product WHERE name=%s", (name,))
+
+            # 🔹 Lấy category_id
+            cur.execute("SELECT cid FROM category WHERE name=%s", (cat_name,))
+            cat = cur.fetchone()
+            if not cat:
+                self.toast_error("Danh mục không tồn tại")
+                return
+            category_id = cat[0]
+
+            # 🔹 Lấy supplier_id
+            cur.execute("SELECT invoice FROM supplier WHERE name=%s", (sup_name,))
+            sup = cur.fetchone()
+            if not sup:
+                self.toast_error("Nhà cung cấp không tồn tại")
+                return
+            supplier_id = sup[0]
+
+            # 🔹 Check trùng tên sản phẩm
+            cur.execute("SELECT pid FROM product WHERE name=%s", (name,))
             if cur.fetchone():
-                QMessageBox.warning(self, "Lỗi", "Sẩn phần đã tồn tại")
+                QMessageBox.warning(self, "Lỗi", "Sản phẩm đã tồn tại")
             else:
-                cur.execute("INSERT INTO product(Category,Supplier,name,price,qty,status) VALUES(%s,%s,%s,%s,%s,%s)",
-                            (cat, sup, name, price, qty, status))
+                cur.execute("""
+                            INSERT INTO product
+                                (category_id, supplier_id, name, price, qty, status)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                            """, (category_id, supplier_id, name, price, qty, status))
+
                 con.commit()
                 self.toast("Sản phẩm đã được thêm thành công")
                 self.clear_form()
                 self.show_data()
+
             con.close()
+
         except Exception as e:
             QMessageBox.critical(self, "Lỗi", str(e))
 
@@ -360,16 +386,34 @@ class ProductClass(QWidget):
         try:
             con = get_connection()
             cur = con.cursor()
-            cur.execute("SELECT * FROM product")
+
+            cur.execute("""
+                        SELECT p.pid,
+                               c.name AS category,
+                               s.name AS supplier,
+                               p.name,
+                               p.price,
+                               p.qty,
+                               p.status
+                        FROM product p
+                                 JOIN category c ON p.category_id = c.cid
+                                 JOIN supplier s ON p.supplier_id = s.invoice
+                        ORDER BY p.pid DESC
+                        """)
+
             rows = cur.fetchall()
-            self.table.setRowCount(len(rows))
-            for i, row in enumerate(rows):
-                for j, val in enumerate(row):
-                    self.table.setItem(i, j, QTableWidgetItem(str(val)))
+            self.table.setRowCount(0)
+
+            for row_data in rows:
+                row = self.table.rowCount()
+                self.table.insertRow(row)
+                for col, data in enumerate(row_data):
+                    self.table.setItem(row, col, QTableWidgetItem(str(data)))
+
             con.close()
+
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
-
 
     def load_from_table(self, row, col):
         self.var_pid = self.table.item(row, 0).text()
@@ -381,22 +425,58 @@ class ProductClass(QWidget):
         self.cmb_status.setCurrentText(self.table.item(row, 6).text())
 
     def update_product(self):
-        if self.var_pid == "":
+        if not self.var_pid:
             self.toast_error("Select a product to update")
             return
+
         try:
             con = get_connection()
             cur = con.cursor()
-            cur.execute(
-                "UPDATE product SET Category=%s,Supplier=%s,name=%s,price=%s,qty=%s,status=%s WHERE pid=%s",
-                (self.cmb_cat.currentText(), self.cmb_sup.currentText(), self.txt_name.text(),
-                 self.txt_price.text(), self.txt_qty.text(), self.cmb_status.currentText(), self.var_pid)
-            )
+
+            # 🔹 Lấy category_id
+            cur.execute("SELECT cid FROM category WHERE name=%s",
+                        (self.cmb_cat.currentText(),))
+            cat = cur.fetchone()
+            if not cat:
+                self.toast_error("Danh mục không tồn tại")
+                return
+            category_id = cat[0]
+
+            # 🔹 Lấy supplier_id
+            cur.execute("SELECT invoice FROM supplier WHERE name=%s",
+                        (self.cmb_sup.currentText(),))
+            sup = cur.fetchone()
+            if not sup:
+                self.toast_error("Nhà cung cấp không tồn tại")
+                return
+            supplier_id = sup[0]
+
+            # 🔹 Update product
+            cur.execute("""
+                        UPDATE product
+                        SET category_id=%s,
+                            supplier_id=%s,
+                            name=%s,
+                            price=%s,
+                            qty=%s,
+                            status=%s
+                        WHERE pid = %s
+                        """, (
+                            category_id,
+                            supplier_id,
+                            self.txt_name.text().strip(),
+                            self.txt_price.text().strip(),
+                            self.txt_qty.text().strip(),
+                            self.cmb_status.currentText(),
+                            self.var_pid
+                        ))
+
             con.commit()
             QMessageBox.information(self, "Success", "Product Updated Successfully")
             self.clear_form()
             self.show_data()
             con.close()
+
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
 
@@ -512,21 +592,56 @@ class ProductClass(QWidget):
 
     def search_product(self):
         searchby = self.cmb_search.currentText()
-        txt = self.txt_search.text()
+        txt = self.txt_search.text().strip()
+
         if searchby == "Select" or txt == "":
             QMessageBox.warning(self, "Lỗi", "Lựa chọn trường để tìm kiếm")
             return
+
+        # 🔒 Map hiển thị → cột DB (CHỐNG SQL Injection)
+        column_map = {
+            "Product Name": "p.name",
+            "Category": "c.name",
+            "Supplier": "s.name",
+            "Status": "p.status"
+        }
+
+        if searchby not in column_map:
+            QMessageBox.warning(self, "Lỗi", "Trường tìm kiếm không hợp lệ")
+            return
+
         try:
             con = get_connection()
             cur = con.cursor()
-            query = f"SELECT * FROM product WHERE {searchby} LIKE %s"
+
+            query = f"""
+                SELECT 
+                    p.pid,
+                    c.name AS category,
+                    s.name AS supplier,
+                    p.name,
+                    p.price,
+                    p.qty,
+                    p.status
+                FROM product p
+                JOIN category c ON p.category_id = c.cid
+                JOIN supplier s ON p.supplier_id = s.invoice
+                WHERE {column_map[searchby]} LIKE %s
+                ORDER BY p.pid DESC
+            """
+
             cur.execute(query, (f"%{txt}%",))
             rows = cur.fetchall()
-            self.table.setRowCount(len(rows))
-            for i, row in enumerate(rows):
-                for j, val in enumerate(row):
-                    self.table.setItem(i, j, QTableWidgetItem(str(val)))
+
+            self.table.setRowCount(0)
+            for row_data in rows:
+                row = self.table.rowCount()
+                self.table.insertRow(row)
+                for col, data in enumerate(row_data):
+                    self.table.setItem(row, col, QTableWidgetItem(str(data)))
+
             con.close()
+
         except Exception as e:
             QMessageBox.critical(self, "Lỗi", str(e))
 
