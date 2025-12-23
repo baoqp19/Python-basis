@@ -5,7 +5,8 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QVBoxLayout,
     QHBoxLayout, QGridLayout, QFrame, QMessageBox, QStackedWidget
 )
-
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from PySide6.QtGui import QFont, QPixmap, QColor, QPalette
 from PySide6.QtCore import Qt, QTimer
 from create_db import create_db, get_connection
@@ -141,7 +142,6 @@ class IMS(QMainWindow):
 
         body_layout.addWidget(menu_frame)
 
-        # ---------- Stacked Widget cho phần nội dung chính ----------
         self.stacked_widget = QStackedWidget()
         body_layout.addWidget(self.stacked_widget, stretch=1)
 
@@ -217,9 +217,6 @@ class IMS(QMainWindow):
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(30, 30, 30, 30)
 
-        from matplotlib.figure import Figure
-        from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-
         self.figure = Figure(figsize=(10, 8), facecolor="white")
         self.canvas = FigureCanvas(self.figure)
         layout.addWidget(self.canvas)
@@ -246,10 +243,10 @@ class IMS(QMainWindow):
         try:
 
             con = get_connection()
-            cur = con.cursor()
+            cur = con.cursor() # thực thi câu lệnh
 
             cur.execute("SELECT COUNT(*) FROM employee");
-            emp = cur.fetchone()[0]
+            emp = cur.fetchone()[0] # trả về tuple
             cur.execute("SELECT COUNT(*) FROM supplier");
             sup = cur.fetchone()[0]
             cur.execute("SELECT COUNT(*) FROM category");
@@ -259,10 +256,10 @@ class IMS(QMainWindow):
 
             bill_path = r"D:\ALL_PROJECT\Python\Inventory-Management-System\bill"
             sales = len(os.listdir(bill_path)) if os.path.exists(bill_path) else 0
-
+            values = [emp, sup, cat, pro, sales]
             con.close()
 
-            values = [emp, sup, cat, pro, sales]
+
             labels = ['Nhân viên', 'Nhà cung cấp', 'Danh mục', 'Sản phẩm', 'Đơn bán hàng']
             colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6']
             total = sum(values)
@@ -276,9 +273,9 @@ class IMS(QMainWindow):
                 autopct=lambda pct: f"{pct:.1f}%" if pct >= 4 else "",
                 colors=colors,
                 startangle=90,
-                wedgeprops=dict(width=0.4, edgecolor='white', linewidth=3),
+                wedgeprops=dict(width=0.4, edgecolor='white', linewidth=3), # tạo lỗ tròn ở giữa
                 textprops=dict(color="white", fontsize=13, fontweight='bold'),
-                pctdistance=0.75
+                pctdistance=0.75 # căn cho đẹp trong lỗ
             )
 
             # Tổng ở giữa
@@ -352,18 +349,15 @@ class IMS(QMainWindow):
 
     def update_content(self):
         try:
-            # === CẬP NHẬT ĐỒNG HỒ ===
             current_time = time.strftime("%I:%M:%S %p")
             current_date = time.strftime("%d-%m-%Y")
             self.lbl_clock.setText(f"Welcome | Date: {current_date} | Time: {current_time}")
 
-            # === CẬP NHẬT BIỂU ĐỒ TRÒN (nếu đang ở Dashboard) ===
             # Chỉ gọi khi đã có hàm và canvas Matplotlib
             if hasattr(self, 'update_dashboard_charts'):
                 self.update_dashboard_charts()
 
         except Exception as ex:
-            # Nếu có lỗi (ví dụ mất kết nối DB), chỉ in ra console, không làm crash app
             print(f"Lỗi cập nhật dashboard: {ex}")
 
 # ----------- RUN APP ------------

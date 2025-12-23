@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QLineEdit, QTextEd
                                QVBoxLayout, QGridLayout, QMessageBox)
 from create_db import get_connection
 from Toast import *
+
 class EmployeeApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -262,21 +263,26 @@ class EmployeeApp(QWidget):
             con = get_connection()
             cur = con.cursor()
 
-            cur.execute("""INSERT INTO employee(name, email, gender, contact, dob, doj, pass, utype, address, salary)
-                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""", (
-                            self.inputs["Name"].text(),
-                            email_text,
-                            self.inputs["Gender"].currentText() if self.inputs[
-                                                                       "Gender"].currentText() != "Select" else "",
-                            self.inputs["Contact"].text(),
-                            self.inputs["D.O.B"].text(),
-                            self.inputs["D.O.J"].text(),
-                            self.inputs["Password"].text(),
-                            self.inputs["User Type"].currentText(),
-                            self.inputs["Address"].toPlainText(),
-                            salary
-                        ))
-
+            cur.execute(
+                """
+                INSERT INTO employee
+                    (name, email, gender, contact, dob, doj, pass, utype, address, salary)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    self.inputs["Name"].text().strip(),
+                    email_text.strip(),
+                    self.inputs["Gender"].currentText()
+                    if self.inputs["Gender"].currentText() != "Select" else None,
+                    self.inputs["Contact"].text().strip(),
+                    self.inputs["D.O.B"].text(),  # yyyy-mm-dd
+                    self.inputs["D.O.J"].text(),  # yyyy-mm-dd
+                    self.inputs["Password"].text(),
+                    self.inputs["User Type"].currentText(),
+                    self.inputs["Address"].toPlainText().strip(),
+                    salary
+                )
+            )
             con.commit()
 
             self.toast("Employee added successfully!")
@@ -287,19 +293,36 @@ class EmployeeApp(QWidget):
             self.toast_error(str(e))
 
     def show_employees(self):
+        con = None
+        cur = None
         try:
             con = get_connection()
             cur = con.cursor()
-            cur.execute("SELECT * FROM employee")
+
+            query = """
+                    SELECT *
+                    FROM employee
+                    """
+            cur.execute(query)
             rows = cur.fetchall()
+
             self.table.setRowCount(0)
-            for row_data in rows:
-                row = self.table.rowCount()
-                self.table.insertRow(row)
-                for col, data in enumerate(row_data):
-                    self.table.setItem(row, col, QTableWidgetItem(str(data)))
+            self.table.setRowCount(len(rows))
+
+            for row_idx, row_data in enumerate(rows): # id, tuple
+                for col_idx, data in enumerate(row_data): # số cột, data
+                    item = QTableWidgetItem("" if data is None else str(data))
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)  # chỉ đọc
+                    self.table.setItem(row_idx, col_idx, item)
+
         except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
+            QMessageBox.critical(self, "Database Error", str(e))
+
+        finally:
+            if cur:
+                cur.close()
+            if con:
+                con.close()
 
     def load_from_table(self, row, col):
         self.inputs["Emp ID"].setText(self.table.item(row, 0).text())
@@ -341,21 +364,35 @@ class EmployeeApp(QWidget):
                 return
             con = get_connection()
             cur = con.cursor()
-            cur.execute("""UPDATE employee SET
-                           name=%s,email=%s,gender=%s,contact=%s,dob=%s,doj=%s,
-                           pass=%s,utype=%s,address=%s,salary=%s WHERE eid=%s""", (
-                self.inputs["Name"].text(),
-                email_text,
-                self.inputs["Gender"].currentText(),
-                self.inputs["Contact"].text(),
-                self.inputs["D.O.B"].text(),
-                self.inputs["D.O.J"].text(),
-                self.inputs["Password"].text(),
-                self.inputs["User Type"].currentText(),
-                self.inputs["Address"].toPlainText(),
-                salary_text,
-                self.inputs["Emp ID"].text()
-            ))
+            cur.execute(
+                """
+                UPDATE employee
+                SET name    = %s,
+                    email   = %s,
+                    gender  = %s,
+                    contact = %s,
+                    dob     = %s,
+                    doj     = %s,
+                    pass    = %s,
+                    utype   = %s,
+                    address = %s,
+                    salary  = %s
+                WHERE eid = %s
+                """,
+                (
+                    self.inputs["Name"].text(),
+                    email_text,
+                    self.inputs["Gender"].currentText(),
+                    self.inputs["Contact"].text(),
+                    self.inputs["D.O.B"].text(),
+                    self.inputs["D.O.J"].text(),
+                    self.inputs["Password"].text(),
+                    self.inputs["User Type"].currentText(),
+                    self.inputs["Address"].toPlainText(),
+                    salary_text,
+                    self.inputs["Emp ID"].text()
+                )
+            )
 
             con.commit()
             self.toast("Nhân viện đã được cập nhật!")
@@ -418,7 +455,11 @@ class EmployeeApp(QWidget):
                 return
             con = get_connection()
             cur = con.cursor()
-            query = f"SELECT * FROM employee WHERE {field} LIKE %s"
+            query = f"""
+                SELECT *
+                FROM employee
+                WHERE {field} LIKE %s
+            """
             cur.execute(query, (f"%{text}%",))
             rows = cur.fetchall()
             self.table.setRowCount(0)

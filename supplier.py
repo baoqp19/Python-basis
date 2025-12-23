@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRect, QTimer
 from PySide6.QtGui import QFont, QColor
 import mysql.connector
 from Toast import *
+
 # ============================= CONFIRM DIALOG ĐẸP =============================
 class ConfirmDialog(QWidget):
     def __init__(self, parent=None):
@@ -141,7 +142,7 @@ class SupplierWindow(QWidget):
         self.txt_desc = QTextEdit()
 
         # GÁN PLACEHOLDER RIÊNG CHO TỪNG Ô
-        self.var_sup_invoice.setPlaceholderText("VD: HD001, HD2025-001...")
+        self.var_sup_invoice.setPlaceholderText("VD: 001, 2025-001...")
         self.var_name.setPlaceholderText("Nhập tên nhà cung cấp")
         self.var_contact.setPlaceholderText("Số điện thoại hoặc email")
         self.txt_desc.setPlaceholderText("Ghi chú thêm về nhà cung cấp, điều khoản thanh toán, v.v...")
@@ -194,17 +195,18 @@ class SupplierWindow(QWidget):
             widget.setStyleSheet(input_style)
             left.addWidget(widget)
 
-        # Thêm khoảng trống dưới cùng cho đẹp
         left.addStretch()
 
         # Buttons
         btns = QHBoxLayout()
+
         buttons = [
             ("Lưu", "#0d6efd", self.add),
             ("Sửa", "#198754", self.update),
             ("Xóa", "#dc3545", self.delete_supplier),
             ("Làm mới", "#6c757d", self.clear),
         ]
+
         for text, color, func in buttons:
             b = QPushButton(text)
             b.setFixedSize(120, 45)
