@@ -4,7 +4,6 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QVBoxLayout, QHBoxLayout, QGridLayout,
     QHeaderView, QGraphicsDropShadowEffect, QMessageBox
 )
-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRect, QTimer
 from PySide6.QtGui import QFont, QColor
 import mysql.connector
 from Toast import *
@@ -142,13 +141,13 @@ class SupplierWindow(QWidget):
         self.txt_desc = QTextEdit()
 
         # GÁN PLACEHOLDER RIÊNG CHO TỪNG Ô
-        self.var_sup_invoice.setPlaceholderText("VD: 001, 2025-001...")
+        self.var_sup_invoice.setPlaceholderText("VD: 001, 002...")
         self.var_name.setPlaceholderText("Nhập tên nhà cung cấp")
         self.var_contact.setPlaceholderText("Số điện thoại hoặc email")
         self.txt_desc.setPlaceholderText("Ghi chú thêm về nhà cung cấp, điều khoản thanh toán, v.v...")
 
         fields = [
-            ("Mã hóa đơn", self.var_sup_invoice),
+            ("Mã nhà cung cấp", self.var_sup_invoice),
             ("Tên nhà cung cấp", self.var_name),
             ("Số điện thoại", self.var_contact),
             ("Mô tả", self.txt_desc),
@@ -222,7 +221,7 @@ class SupplierWindow(QWidget):
         right = QVBoxLayout()
 
         search_bar = QHBoxLayout()
-        search_bar.addWidget(QLabel("Tìm theo mã hóa đơn:"))
+        search_bar.addWidget(QLabel("Tìm kiếm nhà cung cấp:"))
 
         # Dòng này thêm vào ngay sau là xong!
         search_bar.itemAt(0).widget().setStyleSheet("""
@@ -306,7 +305,6 @@ class SupplierWindow(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setAlternatingRowColors(True)
 
-        # CSS HOÀN CHỈNH - CHỮ TRONG BẢNG ĐEN ĐẬM + SIÊU ĐẸP
         self.table.setStyleSheet("""
             QTableWidget {
                 background-color: white;
@@ -351,6 +349,11 @@ class SupplierWindow(QWidget):
         content.addLayout(right, 3)
         main_layout.addLayout(content)
 
+    def darken(self, hex_color):
+        c = hex_color.lstrip('#')
+        rgb = tuple(max(0, int(c[i:i+2], 16) - 40) for i in (0,2,4))
+        return '#' + ''.join(f'{x:02x}' for x in rgb)
+
     def connect_db(self):
         try:
             self.conn = mysql.connector.connect(
@@ -381,12 +384,12 @@ class SupplierWindow(QWidget):
 
     def add(self):
         if not self.var_sup_invoice.text().strip():
-            self.toast_error("Mã hóa đơn không được để trống!")
+            self.toast_error("Mã nhà cung cấp không được để trống!")
             return
         try:
             self.cursor.execute("SELECT 1 FROM supplier WHERE invoice=%s", (self.var_sup_invoice.text(),))
             if self.cursor.fetchone():
-                self.toast_error("Mã hóa đơn đã tồn tại!")
+                self.toast_error("Mã nhà cung cấp đã tồn tại!")
                 return
             self.cursor.execute(
                 "INSERT INTO supplier(invoice, name, contact, `desc`) VALUES (%s,%s,%s,%s)",
@@ -408,6 +411,7 @@ class SupplierWindow(QWidget):
                 "UPDATE supplier SET name=%s, contact=%s, `desc`=%s WHERE invoice=%s",
                 (self.var_name.text(), self.var_contact.text(), self.txt_desc.toPlainText(), self.var_sup_invoice.text())
             )
+
             self.conn.commit()
             self.toast("Cập nhật thành công!")
             self.load_data()
@@ -455,22 +459,31 @@ class SupplierWindow(QWidget):
     def search(self):
         txt = self.var_searchtxt.text().strip()
         if not txt:
-            self.toast_error("Nhập mã hóa đơn để tìm!")
+            self.toast_error("Nhập tên nhà cung cấp để tìm!")
             return
-        self.cursor.execute("SELECT * FROM supplier WHERE invoice=%s", (txt,))
-        row = self.cursor.fetchone()
-        self.table.setRowCount(0)
-        if row:
-            self.table.insertRow(0)
-            for i, v in enumerate(row):
-                self.table.setItem(0, i, QTableWidgetItem(str(v)))
-        else:
-            self.toast_error("Không tìm thấy nhà cung cấp!")
 
-    def darken(self, hex_color):
-        c = hex_color.lstrip('#')
-        rgb = tuple(max(0, int(c[i:i+2], 16) - 40) for i in (0,2,4))
-        return '#' + ''.join(f'{x:02x}' for x in rgb)
+        try:
+            self.cursor.execute("""
+                                SELECT *
+                                FROM supplier
+                                WHERE name LIKE %s
+                                """, (f"%{txt}%",))
+
+            rows = self.cursor.fetchall() # trả về [()]
+            self.table.setRowCount(0)
+
+            if rows:
+                for row_data in rows:
+                    row = self.table.rowCount()
+                    self.table.insertRow(row) # tăng row lên 1
+                    for col, data in enumerate(row_data):
+                        self.table.setItem(row, col, QTableWidgetItem(str(data)))
+            else:
+                self.toast_error("Không tìm thấy nhà cung cấp!")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi", str(e))
+
 
 
 if __name__ == "__main__":

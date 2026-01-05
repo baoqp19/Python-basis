@@ -1,4 +1,3 @@
-# bill.py - Giao diện hóa đơn bán hàng SIÊU ĐẸP bằng PySide6
 import sys, os, time, tempfile
 from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QLineEdit, QTextEdit,
@@ -15,7 +14,7 @@ class BillWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.cart_list = []
-        self.setWindowTitle("Hóa Đơn Bán Hàng - Inventory Management System")
+        self.setWindowTitle("Hóa Đơn Bán Hàng - Warehouse Management System")
         self.setGeometry(100, 50, 1400, 780)
         self.setStyleSheet("background-color: #f4f6f9;")
 
@@ -45,7 +44,7 @@ class BillWindow(QWidget):
         hbox.addWidget(logo)
 
         # Tiêu đề
-        title = QLabel("INVENTORY MANAGEMENT SYSTEM")
+        title = QLabel("WAREHOUSE MANAGEMENT SYSTEM")
         title.setFont(QFont("Segoe UI", 28, QFont.Bold))
         title.setStyleSheet("color: white;")
         hbox.addWidget(title)
@@ -91,14 +90,14 @@ class BillWindow(QWidget):
         """)
         left_layout = QVBoxLayout(left)
 
-        # Tiêu đề danh sách sản phẩm (SỬA CHỖ NÀY)
+        # Tiêu đề danh sách sản phẩm
         title_left = QLabel("DANH SÁCH SẢN PHẨM")
         title_left.setFont(QFont("Segoe UI", 16, QFont.Bold))
         title_left.setStyleSheet("background:#2c3e50; color:white; padding:15px; border-radius:12px 12px 0 0;")
         title_left.setAlignment(Qt.AlignCenter)
         left_layout.addWidget(title_left)
 
-        # Thanh tìm kiếm đẹp
+        # Thanh tìm kiếm
         search_bar = QWidget()
         search_bar.setStyleSheet("background:#f8f9fa; border-radius:10px; padding:10px;")
         sbox = QHBoxLayout(search_bar)
@@ -222,6 +221,7 @@ class BillWindow(QWidget):
             border: 2px solid #ddd; border-radius: 10px;
             background: #1e1e1e; color: #00ff00; padding: 10px;
         """)
+
         rvbox.addWidget(self.txt_bill_area)
 
         # Nút chức năng
@@ -246,34 +246,12 @@ class BillWindow(QWidget):
         body_layout.addWidget(right, 3)
 
         # ===================== FOOTER =====================
-        footer = QLabel("© 2025 Inventory Management System | Phát triển bởi Phạm Quốc Bảo | Liên hệ: 0818174508")
+        footer = QLabel("© 2025 Warehouse Management System | Phát triển bởi Phạm Quốc Bảo | Liên hệ: 99999999")
         footer.setStyleSheet("background:#2c3e50; color:#bdc3c7; padding:12px; font-size:12px;")
         footer.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(footer)
 
     # ===================== CÁC HÀM CHỨC NĂNG =====================
-    def save_bill_to_file(self):
-        if not self.cart_list:
-            QMessageBox.information(self, "Info", "Generate bill first")
-            return
-
-        # Thư mục lưu hóa đơn
-        folder = "bill"
-        if not os.path.exists(folder):
-            os.makedirs(folder)  # tạo folder nếu chưa có
-
-        # Tên file có thể dùng timestamp để không bị trùng
-        import datetime
-        timestamp = int(time.strftime("%H%M%S")) + int(time.strftime("%d%m%Y"))
-        file_path = os.path.join(folder, f"{timestamp}.txt")
-
-        # Ghi file với encoding UTF-8 để hỗ trợ tiếng Việt
-        try:
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(self.txt_bill_area.toPlainText())
-            QMessageBox.information(self, "Thành công", f"Lưu hóa đơn thành công:\n{file_path}")
-        except Exception as e:
-            QMessageBox.critical(self, "Lỗi", f"Không thể lưu file:\n{str(e)}")
 
     def start_clock(self):
         def update():
@@ -337,6 +315,7 @@ class BillWindow(QWidget):
         self.spin_qty.setMaximum(stock)
         self.spin_qty.setValue(1)
 
+    # load cart -> trạng thái chờ
     def select_cart_item(self, row, col):
         self.txt_pid.setText(self.cart_table.item(row,0).text())
         self.txt_pname.setText(self.cart_table.item(row,1).text())
@@ -374,8 +353,8 @@ class BillWindow(QWidget):
 
         # --- Thông tin hóa đơn ---
         bill_lines = [
-            "          XYZ INVENTORY SYSTEM",
-            "   Địa chỉ: 123 Đường ABC, TP.HCM",
+            "          XYZ WAREHOUSE SYSTEM",
+            "   Địa chỉ: 123 Đường ABC, DN",
             "   Hotline: 0989 945 9288",
             "=" * 55,
             f"Khách: {self.txt_cname.text().strip() or 'Khách lẻ':<35}",
@@ -460,6 +439,29 @@ class BillWindow(QWidget):
         with open(path, "w", encoding="utf-8") as f:
             f.write(self.txt_bill_area.toPlainText())
         os.startfile(path, "print")
+
+    def save_bill_to_file(self):
+        if not self.cart_list:
+            QMessageBox.information(self, "Info", "Generate bill first")
+            return
+
+        # Thư mục lưu hóa đơn
+        folder = "bill"
+        if not os.path.exists(folder):
+            os.makedirs(folder)  # tạo folder nếu chưa có
+
+        # Tên file có thể dùng timestamp để không bị trùng
+        timestamp = int(time.strftime("%H%M%S")) + int(time.strftime("%d%m%Y"))
+        file_path = os.path.join(folder, f"{timestamp}.txt")
+
+        # Ghi file với encoding UTF-8 để hỗ trợ tiếng Việt
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(self.txt_bill_area.toPlainText())
+            QMessageBox.information(self, "Thành công", f"Lưu hóa đơn thành công:\n{file_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi", f"Không thể lưu file:\n{str(e)}")
+
 
     def clear_all(self):
         if QMessageBox.question(self, "Xác nhận", "Xóa toàn bộ giỏ hàng?") == QMessageBox.Yes:

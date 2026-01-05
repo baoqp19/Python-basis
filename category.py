@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
     QMessageBox, QHeaderView, QFrame
 )
+
 from PySide6.QtGui import QPixmap, QFont, QIcon
 from PySide6.QtCore import Qt
 import os
@@ -21,7 +22,7 @@ class CategoryWindow(QWidget):
         main_layout.setSpacing(20)
         main_layout.setContentsMargins(30, 30, 30, 30)
 
-        # ===== TIÊU ĐỀ ĐẸP =====
+        # ===== TIÊU ĐỀ =====
         title = QLabel("QUẢN LÝ DANH MỤC SẢN PHẨM")
         title.setAlignment(Qt.AlignCenter)
         title.setFont(QFont("Segoe UI", 24, QFont.Bold))
@@ -170,8 +171,6 @@ class CategoryWindow(QWidget):
         # Load dữ liệu
         self.load_categories()
 
-    # Giữ nguyên các hàm execute_db, load_categories, add_category, get_data, delete_category
-    # (copy y nguyên từ code cũ của bạn vào đây là được)
 
     def execute_db(self, query, params=(), fetch=False):
         try:
@@ -209,6 +208,7 @@ class CategoryWindow(QWidget):
         self.txt_name.clear()
         self.load_categories()
 
+    # xét dữ liệu lên form
     def get_data(self, row, column):
         self.var_cat_id = self.table.item(row, 0).text()
         self.txt_name.setText(self.table.item(row, 1).text())

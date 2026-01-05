@@ -598,7 +598,6 @@ class ProductClass(QWidget):
             QMessageBox.warning(self, "Lỗi", "Lựa chọn trường để tìm kiếm")
             return
 
-        # 🔒 Map hiển thị → cột DB (CHỐNG SQL Injection)
         column_map = {
             "Product Name": "p.name",
             "Category": "c.name",

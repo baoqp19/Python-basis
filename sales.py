@@ -1,13 +1,14 @@
 import sys
 import os
+
 from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton,
     QListWidget, QTextEdit, QVBoxLayout, QHBoxLayout,
     QFrame, QMessageBox, QSplitter
 )
+
 from PySide6.QtGui import QPixmap, QFont
 from PySide6.QtCore import Qt, QSize
-
 
 class SalesClass(QWidget):
     def __init__(self):

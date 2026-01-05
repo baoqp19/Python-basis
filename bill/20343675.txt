@@ -1,5 +1,5 @@
           XYZ INVENTORY SYSTEM
-   Địa chỉ: 123 Đường ABC, TP.HCM
+   Địa chỉ: 123 Đường ABC, DN
    Hotline: 0989 945 9288
 =======================================================
 Khách: Phạm Quốc Bảo                      
